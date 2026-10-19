@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Connecticut Built Over Time</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+/* Layout: full-bleed night map; a title card top-left, a timeline dock along the bottom edge. */
+:root{
+  --night:#0a0e16;
+  --panel:rgba(11,15,24,.88);
+  --rule:#26304a;
+  --text:#e9edf5;
+  --muted:#8e98b0;
+  --ember:#ffb347;
+  --flash:#fff4cf;
+  --settled:#3f8fb0;
+  --f-display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--night);color:var(--text);font:14px/1.45 var(--f-body)}
+#map{position:fixed;inset:0}
+.card{
+  position:fixed;top:calc(16px + env(safe-area-inset-top,0px));left:calc(16px + env(safe-area-inset-left,0px));
+  width:min(340px,calc(100vw - 32px));background:var(--panel);backdrop-filter:blur(8px);
+  border:1px solid var(--rule);border-radius:10px;padding:16px;display:grid;gap:12px;z-index:2
+}
+.eyebrow{font:500 11px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0}
+h1{font:800 30px/0.95 var(--f-display);letter-spacing:.01em;margin:0;text-transform:uppercase;text-wrap:balance}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+select,button{
+  font:500 13px var(--f-body);color:var(--text);background:#141b2b;border:1px solid var(--rule);
+  border-radius:6px;padding:7px 10px;cursor:pointer
+}
+select{flex:1;min-width:0}
+button:hover,select:hover{border-color:#3b4868}
+button:focus-visible,select:focus-visible,input:focus-visible,canvas:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
+button.primary{background:var(--ember);color:#1b1206;border-color:var(--ember);font-weight:600}
+#status{font:12px/1.4 var(--f-mono);color:var(--muted);min-height:1.4em}
+#status.err{color:#ff8a7a}
+.legend{display:grid;gap:6px;font-size:12px;color:var(--muted)}
+.ramp{height:8px;border-radius:4px}
+.ramp.glow{background:linear-gradient(90deg,var(--flash),#ffd166 20%,#ff7a45 60%,rgba(194,65,12,0))}
+.ramp.era{background:linear-gradient(90deg,#24305e,#2f4f8a,#3a76a8,#3f9fb5,#59c2b0,#9be3c6)}
+.ramp-labels{display:flex;justify-content:space-between;font:11px var(--f-mono)}
+.note{font-size:12px;color:var(--muted);margin:0}
+
+.dock{
+  position:fixed;left:0;right:0;bottom:0;z-index:2;background:var(--panel);backdrop-filter:blur(8px);
+  border-top:1px solid var(--rule);
+  padding-block:12px calc(12px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:end
+}
+.readout{display:grid;gap:4px;min-width:150px}
+#year{font:800 64px/0.85 var(--f-display);color:var(--flash);text-shadow:0 0 18px rgba(255,179,71,.55);font-variant-numeric:tabular-nums}
+.stats{font:12px/1.5 var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.stats b{color:var(--text);font-weight:500}
+.timeline{display:grid;gap:8px;min-width:0}
+#hist{width:100%;height:84px;display:block;cursor:ew-resize;touch-action:none}
+#slider{width:100%;accent-color:var(--ember);margin:0}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
+.controls label{display:flex;gap:6px;align-items:center}
+.controls select{flex:none;padding:5px 8px}
+#play{min-width:84px}
+
+.maplibregl-popup-content{background:#111827;color:var(--text);border:1px solid var(--rule);border-radius:8px;font:13px/1.4 var(--f-body);padding:10px 12px}
+.maplibregl-popup-tip{border-top-color:#111827!important;border-bottom-color:#111827!important}
+.maplibregl-popup-close-button{color:var(--muted)}
+.pop-y{font:800 26px/1 var(--f-display);color:var(--ember)}
+.maplibregl-ctrl-bottom-right{bottom:150px}
+
+@media (max-width:640px){
+  .card{padding:12px;gap:10px}
+  h1{font-size:24px}
+  .legend,.note{display:none}
+  .dock{grid-template-columns:1fr;gap:10px}
+  .readout{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  #year{font-size:48px}
+  #hist{height:64px}
+  .maplibregl-ctrl-bottom-right{bottom:220px}
+}
+</style>
+</head>
+<body>
+<div id="map" aria-label="Map of parcels by year built"></div>
+
+<section class="card">
+  <div>
+    <p class="eyebrow">CT CAMA &amp; Parcels · Actual Year Built</p>
+    <h1>Connecticut Built Over Time</h1>
+  </div>
+  <div class="row">
+    <select id="town" aria-label="Town"></select>
+    <button id="load" class="primary">Load town</button>
+  </div>
+  <div id="status" role="status">Starting…</div>
+  <div class="legend">
+    <div>Just built</div>
+    <div class="ramp glow"></div>
+    <div class="ramp-labels"><span>this year</span><span id="fadeLbl">+6 yrs</span></div>
+    <div>Settled, colored by era</div>
+    <div class="ramp era"></div>
+    <div class="ramp-labels"><span>1700</span><span>1850</span><span>1950</span><span>2015+</span></div>
+  </div>
+  <p class="note">AYB only describes buildings standing today, so demolished structures never appear and teardowns show up as new. Assessors often round older build years, which causes spikes at 1900, 1920, 1950.</p>
+</section>
+
+<section class="dock">
+  <div class="readout">
+    <div id="year">—</div>
+    <div class="stats">Built this year <b id="nYear">0</b><br>Standing, built by now <b id="nCum">0</b></div>
+  </div>
+  <div class="timeline">
+    <canvas id="hist" tabindex="0" aria-label="Buildings per year. Click or drag to jump to a year."></canvas>
+    <input id="slider" type="range" min="1700" max="2026" step="1" value="1700" aria-label="Year">
+    <div class="controls">
+      <button id="play">▶ Play</button>
+      <label>Speed
+        <select id="speed">
+          <option value="1">1 yr/s</option>
+          <option value="3" selected>3 yr/s</option>
+          <option value="6">6 yr/s</option>
+          <option value="12">12 yr/s</option>
+        </select>
+      </label>
+      <label>Glow lasts
+        <select id="fade">
+          <option value="3">3 yrs</option>
+          <option value="6" selected>6 yrs</option>
+          <option value="10">10 yrs</option>
+          <option value="20">20 yrs</option>
+        </select>
+      </label>
+    </div>
+  </div>
+</section>
+
+<script>
+const SVC = "https://services3.arcgis.com/3FL1kr7L4LvwA2Kb/arcgis/rest/services/Connecticut_CAMA_and_Parcel_Layer/FeatureServer/0";
+const PAGE = 2000, CONCURRENCY = 6;
+const MIN_VALID = 1600, MAX_YEAR = new Date().getFullYear();
+const DEFAULT_TOWN = "Glastonbury";
+
+const TOWNS = ["Andover","Ansonia","Ashford","Avon","Barkhamsted","Beacon Falls","Berlin","Bethany","Bethel","Bethlehem","Bloomfield","Bolton","Bozrah","Branford","Bridgeport","Bridgewater","Bristol","Brookfield","Brooklyn","Burlington","Canaan","Canterbury","Canton","Chaplin","Cheshire","Chester","Clinton","Colchester","Colebrook","Columbia","Cornwall","Coventry","Cromwell","Danbury","Darien","Deep River","Derby","Durham","East Granby","East Haddam","East Hampton","East Hartford","East Haven","East Lyme","East Windsor","Eastford","Easton","Ellington","Enfield","Essex","Fairfield","Farmington","Franklin","Glastonbury","Goshen","Granby","Greenwich","Griswold","Groton","Guilford","Haddam","Hamden","Hampton","Hartford","Hartland","Harwinton","Hebron","Kent","Killingly","Killingworth","Lebanon","Ledyard","Lisbon","Litchfield","Lyme","Madison","Manchester","Mansfield","Marlborough","Meriden","Middlebury","Middlefield","Middletown","Milford","Monroe","Montville","Morris","Naugatuck","New Britain","New Canaan","New Fairfield","New Hartford","New Haven","New London","New Milford","Newington","Newtown","Norfolk","North Branford","North Canaan","North Haven","North Stonington","Norwalk","Norwich","Old Lyme","Old Saybrook","Orange","Oxford","Plainfield","Plainville","Plymouth","Pomfret","Portland","Preston","Prospect","Putnam","Redding","Ridgefield","Rocky Hill","Roxbury","Salem","Salisbury","Scotland","Seymour","Sharon","Shelton","Sherman","Simsbury","Somers","South Windsor","Southbury","Southington","Sprague","Stafford","Stamford","Sterling","Stonington","Stratford","Suffield","Thomaston","Thompson","Tolland","Torrington","Trumbull","Union","Vernon","Voluntown","Wallingford","Warren","Washington","Waterbury","Waterford","Watertown","West Hartford","West Haven","Westbrook","Weston","Westport","Wethersfield","Willington","Wilton","Winchester","Windham","Windsor","Windsor Locks","Wolcott","Woodbridge","Woodbury","Woodstock"];
+
+// Era colors for settled buildings (by year built)
+const ERA = [1700,"#24305e", 1850,"#2f4f8a", 1920,"#3a76a8", 1960,"#3f9fb5", 1990,"#59c2b0", 2015,"#9be3c6"];
+const eraColor = y => {
+  for (let i = ERA.length - 2; i >= 0; i -= 2) if (y >= ERA[i]) return ERA[i+1];
+  return ERA[1];
+};
+
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString("en-US");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const setStatus = (msg, err=false) => { const s=$("status"); s.textContent = msg; s.classList.toggle("err", err); };
+
+const S = {
+  t: null, Y: null, playing: false, speed: 3, fade: 6,
+  minY: 1700, maxY: MAX_YEAR,
+  polysByYear: new Map(), ptsByYear: new Map(),
+  counts: new Map(), cum: new Map(), maxCount: 1, loaded: false
+};
+
+// ---------- Map ----------
+const map = new maplibregl.Map({
+  container: "map",
+  style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+  bounds: [[-73.73, 40.98], [-71.78, 42.05]],
+  fitBoundsOptions: { padding: 40 },
+  attributionControl: { compact: true }
+});
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+
+const EMPTY = { type: "FeatureCollection", features: [] };
+
+map.on("load", () => {
+  const firstSymbol = map.getStyle().layers.find(l => l.type === "symbol")?.id;
+
+  map.addSource("parcels", { type: "geojson", data: EMPTY });
+  map.addSource("recent", { type: "geojson", data: EMPTY });
+  map.addSource("recent-pts", { type: "geojson", data: EMPTY });
+
+  map.addLayer({
+    id: "parcels-fill", type: "fill", source: "parcels",
+    filter: ["<=", ["get", "y"], -1],
+    paint: {
+      "fill-color": ["interpolate", ["linear"], ["get", "y"], ...ERA],
+      "fill-opacity": 0.6
+    }
+  }, firstSymbol);
+  map.addLayer({
+    id: "parcels-line", type: "line", source: "parcels", minzoom: 14,
+    filter: ["<=", ["get", "y"], -1],
+    paint: { "line-color": "#9be3c6", "line-opacity": 0.18, "line-width": 0.5 }
+  }, firstSymbol);
+  map.addLayer({
+    id: "glow-fill", type: "fill", source: "recent",
+    paint: { "fill-color": "#fff4cf", "fill-opacity": 0 }
+  }, firstSymbol);
+  map.addLayer({
+    id: "glow-halo", type: "circle", source: "recent-pts",
+    paint: { "circle-color": "#ffb347", "circle-opacity": 0, "circle-radius": 6, "circle-blur": 1, "circle-pitch-alignment": "map" }
+  }, firstSymbol);
+
+  map.on("click", "parcels-fill", e => {
+    const p = e.features[0].properties;
+    const area = p.Living_Area ? `${fmt(Math.round(p.Living_Area))} sq ft living area` : "";
+    new maplibregl.Popup({ maxWidth: "260px" }).setLngLat(e.lngLat).setHTML(
+      `<div class="pop-y">${esc(p.y)}</div>
+       <div><b>${esc(p.Location || "No address")}</b></div>
+       <div style="color:var(--muted)">${esc(p.State_Use_Description || "")}${area ? "<br>" + area : ""}</div>`
+    ).addTo(map);
+  });
+  map.on("mouseenter", "parcels-fill", () => map.getCanvas().style.cursor = "pointer");
+  map.on("mouseleave", "parcels-fill", () => map.getCanvas().style.cursor = "");
+
+  const urlTown = new URLSearchParams(location.search).get("town");
+  const start = TOWNS.find(t => t.toLowerCase() === (urlTown || "").toLowerCase()) || DEFAULT_TOWN;
+  $("town").value = start;
+  loadTown(start);
+});
+
+// ---------- Data ----------
+async function q(params, tries = 3) {
+  const u = new URL(SVC + "/query");
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+  for (let i = 0; i < tries; i++) {
+    try {
+      const r = await fetch(u);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json();
+      if (j.error) throw new Error(j.error.message || "Query error");
+      return j;
+    } catch (e) {
+      if (i === tries - 1) throw e;
+      await new Promise(res => setTimeout(res, 600 * (i + 1)));
+    }
+  }
+}
+
+async function pool(items, n, fn) {
+  let i = 0;
+  const workers = Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (i < items.length) { const k = items[i++]; await fn(k); }
+  });
+  await Promise.all(workers);
+}
+
+let loadToken = 0;
+async function loadTown(town) {
+  const token = ++loadToken;
+  pause();
+  $("load").disabled = true;
+  try {
+    const where = `UPPER(Town_Name)='${town.toUpperCase().replace(/'/g, "''")}' AND AYB>=${MIN_VALID} AND AYB<=${MAX_YEAR}`;
+    setStatus(`Counting parcels in ${town}…`);
+    const { count } = await q({ where, returnCountOnly: "true", f: "json" });
+    if (token !== loadToken) return;
+    if (!count) { setStatus(`No parcels with a build year found for ${town}.`, true); return; }
+
+    const offsets = Array.from({ length: Math.ceil(count / PAGE) }, (_, i) => i * PAGE);
+    const feats = [];
+    setStatus(`Loading ${town}: 0 of ${fmt(count)} parcels`);
+    await pool(offsets, CONCURRENCY, async off => {
+      const j = await q({
+        where, f: "geojson", outSR: 4326,
+        outFields: "OBJECTID,AYB,Location,State_Use_Description,Living_Area",
+        geometryPrecision: 6, maxAllowableOffset: 0.000008,
+        orderByFields: "OBJECTID", resultOffset: off, resultRecordCount: PAGE
+      });
+      if (token !== loadToken) return;
+      for (const f of j.features || []) if (f.geometry) feats.push(f);
+      setStatus(`Loading ${town}: ${fmt(feats.length)} of ${fmt(count)} parcels`);
+    });
+    if (token !== loadToken) return;
+    ingest(feats);
+    setStatus(`${town}: ${fmt(feats.length)} parcels with a build year. Click any parcel for details.`);
+    play();
+  } catch (e) {
+    if (token === loadToken) setStatus(`Couldn't load ${town}: ${e.message}. Check your connection and try again.`, true);
+  } finally {
+    if (token === loadToken) $("load").disabled = false;
+  }
+}
+
+function ringCenter(geom) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const polys = geom.type === "MultiPolygon" ? geom.coordinates : [geom.coordinates];
+  for (const poly of polys) for (const [x, y] of poly[0]) {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  return [[(minX + maxX) / 2, (minY + maxY) / 2], [minX, minY, maxX, maxY]];
+}
+
+function ingest(feats) {
+  S.polysByYear = new Map(); S.ptsByYear = new Map(); S.counts = new Map(); S.cum = new Map();
+  const bb = [Infinity, Infinity, -Infinity, -Infinity];
+  const years = [];
+  for (const f of feats) {
+    const y = Math.round(f.properties.AYB);
+    f.properties.y = y;
+    const [c, b] = ringCenter(f.geometry);
+    bb[0] = Math.min(bb[0], b[0]); bb[1] = Math.min(bb[1], b[1]);
+    bb[2] = Math.max(bb[2], b[2]); bb[3] = Math.max(bb[3], b[3]);
+    if (!S.polysByYear.has(y)) { S.polysByYear.set(y, []); S.ptsByYear.set(y, []); }
+    S.polysByYear.get(y).push(f);
+    S.ptsByYear.get(y).push({ type: "Feature", geometry: { type: "Point", coordinates: c }, properties: { y } });
+    S.counts.set(y, (S.counts.get(y) || 0) + 1);
+    years.push(y);
+  }
+  years.sort((a, b) => a - b);
+  // Start the timeline near the 0.5th percentile so a few 1600s outliers don't leave a long empty stretch.
+  const p = years[Math.floor(years.length * 0.005)] ?? years[0];
+  S.minY = Math.max(MIN_VALID, Math.floor(p / 10) * 10);
+  S.maxY = Math.max(MAX_YEAR, years[years.length - 1]);
+  let run = 0;
+  for (let y = years[0]; y <= S.maxY; y++) { run += S.counts.get(y) || 0; S.cum.set(y, run); }
+  S.maxCount = 1;
+  for (let y = S.minY; y <= S.maxY; y++) S.maxCount = Math.max(S.maxCount, S.counts.get(y) || 0);
+  S.firstYear = years[0];
+
+  map.getSource("parcels").setData({ type: "FeatureCollection", features: feats });
+  if (isFinite(bb[0])) {
+    const mobile = innerWidth <= 640;
+    map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], {
+      padding: mobile ? { top: 140, bottom: 230, left: 20, right: 20 } : { top: 40, bottom: 170, left: 380, right: 40 },
+      duration: 1200
+    });
+  }
+  const sl = $("slider");
+  sl.min = S.minY; sl.max = S.maxY;
+  S.loaded = true; S.Y = null;
+  setT(S.minY);
+}
+
+// ---------- Time ----------
+function rebuildRecent(Y) {
+  const polys = [], pts = [];
+  for (let y = Y - S.fade + 1; y <= Y; y++) {
+    const a = S.polysByYear.get(y); if (a) polys.push(...a);
+    const b = S.ptsByYear.get(y); if (b) pts.push(...b);
+  }
+  map.getSource("recent").setData({ type: "FeatureCollection", features: polys });
+  map.getSource("recent-pts").setData({ type: "FeatureCollection", features: pts });
+}
+
+function paintGlow(t) {
+  const F = S.fade;
+  const age = ["-", t, ["get", "y"]];
+  const color = ["interpolate", ["linear"], age, 0, "#fff4cf", 0.6, "#ffd166", F * 0.5, "#ff7a45", F, "#c2410c"];
+  map.setPaintProperty("glow-fill", "fill-color", color);
+  map.setPaintProperty("glow-fill", "fill-opacity", ["interpolate", ["linear"], age, 0, 0.95, F, 0]);
+  const k = ["interpolate", ["linear"], age, 0, 1.7, 1, 1, F, 0.35];
+  map.setPaintProperty("glow-halo", "circle-color", color);
+  map.setPaintProperty("glow-halo", "circle-opacity", ["interpolate", ["linear"], age, 0, 0.85, F, 0]);
+  map.setPaintProperty("glow-halo", "circle-radius",
+    ["interpolate", ["linear"], ["zoom"], 9, ["*", 3, k], 12, ["*", 10, k], 15, ["*", 28, k], 18, ["*", 70, k]]);
+}
+
+function setT(t) {
+  if (!S.loaded) return;
+  t = Math.min(Math.max(t, S.minY), S.maxY + 0.999);
+  S.t = t;
+  const Y = Math.floor(t);
+  if (Y !== S.Y) {
+    S.Y = Y;
+    const f = ["<=", ["get", "y"], Y];
+    map.setFilter("parcels-fill", f);
+    map.setFilter("parcels-line", f);
+    rebuildRecent(Y);
+    $("year").textContent = Y;
+    $("nYear").textContent = fmt(S.counts.get(Y) || 0);
+    $("nCum").textContent = fmt(S.cum.get(Y) || 0);
+    $("slider").value = Y;
+  }
+  paintGlow(t);
+  drawHist();
+}
+
+let last = 0, raf = 0;
+function tick(now) {
+  if (!S.playing) return;
+  const dt = last ? Math.min((now - last) / 1000, 0.1) : 0;
+  last = now;
+  const next = S.t + dt * S.speed;
+  if (next >= S.maxY + 0.999) { setT(S.maxY + 0.999); pause(); return; }
+  setT(next);
+  raf = requestAnimationFrame(tick);
+}
+function play() {
+  if (!S.loaded) return;
+  if (S.t >= S.maxY + 0.99) setT(S.minY);
+  S.playing = true; last = 0;
+  $("play").textContent = "❚❚ Pause";
+  raf = requestAnimationFrame(tick);
+}
+function pause() {
+  S.playing = false; cancelAnimationFrame(raf);
+  $("play").textContent = "▶ Play";
+}
+
+// ---------- Histogram ----------
+const hist = $("hist"), hctx = hist.getContext("2d");
+function drawHist() {
+  const dpr = devicePixelRatio || 1;
+  const w = hist.clientWidth, h = hist.clientHeight;
+  if (hist.width !== w * dpr || hist.height !== h * dpr) { hist.width = w * dpr; hist.height = h * dpr; }
+  hctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  hctx.clearRect(0, 0, w, h);
+  if (!S.loaded) return;
+  const n = S.maxY - S.minY + 1, axis = 14, top = 4, ph = h - axis - top;
+  const bw = w / n;
+  const x = y => (y - S.minY) * bw;
+
+  hctx.font = "10px 'IBM Plex Mono', monospace";
+  hctx.fillStyle = "#8e98b0"; hctx.strokeStyle = "#26304a"; hctx.lineWidth = 1;
+  hctx.textBaseline = "bottom";
+  const step = n > 250 ? 50 : n > 120 ? 25 : 10;
+  for (let y = Math.ceil(S.minY / step) * step; y <= S.maxY; y += step) {
+    const xx = Math.round(x(y)) + 0.5;
+    hctx.beginPath(); hctx.moveTo(xx, top); hctx.lineTo(xx, top + ph); hctx.stroke();
+    const tw = hctx.measureText(y).width;
+    hctx.fillText(y, Math.min(Math.max(xx - tw / 2, 0), w - tw), h);
+  }
+
+  for (let y = S.minY; y <= S.maxY; y++) {
+    const c = S.counts.get(y) || 0;
+    if (!c) continue;
+    const bh = Math.max(1, Math.sqrt(c / S.maxCount) * ph);
+    const age = S.t - y;
+    if (age < 0) { hctx.fillStyle = "rgba(142,152,176,.22)"; }
+    else if (age < S.fade) {
+      const a = 1 - age / S.fade;
+      hctx.fillStyle = `rgba(255,${Math.round(150 + 90 * a)},${Math.round(70 + 130 * a * a)},${0.45 + 0.55 * a})`;
+    } else hctx.fillStyle = eraColor(y);
+    hctx.fillRect(x(y), top + ph - bh, Math.max(bw - (bw > 3 ? 1 : 0), 0.8), bh);
+  }
+
+  const px = x(S.t);
+  hctx.strokeStyle = "#fff4cf"; hctx.lineWidth = 1.5;
+  hctx.shadowColor = "#ffb347"; hctx.shadowBlur = 8;
+  hctx.beginPath(); hctx.moveTo(px, top); hctx.lineTo(px, top + ph); hctx.stroke();
+  hctx.shadowBlur = 0;
+}
+
+function histToYear(clientX) {
+  const r = hist.getBoundingClientRect();
+  const f = Math.min(Math.max((clientX - r.left) / r.width, 0), 1);
+  return S.minY + f * (S.maxY - S.minY + 1);
+}
+let dragging = false;
+hist.addEventListener("pointerdown", e => { if (!S.loaded) return; dragging = true; hist.setPointerCapture(e.pointerId); pause(); setT(histToYear(e.clientX)); });
+hist.addEventListener("pointermove", e => { if (dragging) setT(histToYear(e.clientX)); });
+hist.addEventListener("pointerup", () => dragging = false);
+hist.addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft") { pause(); setT(Math.floor(S.t) - 1); e.preventDefault(); }
+  if (e.key === "ArrowRight") { pause(); setT(Math.floor(S.t) + 1); e.preventDefault(); }
+  if (e.key === " ") { S.playing ? pause() : play(); e.preventDefault(); }
+});
+addEventListener("resize", drawHist);
+
+// ---------- Controls ----------
+const townSel = $("town");
+for (const t of TOWNS) townSel.add(new Option(t, t));
+$("load").addEventListener("click", () => loadTown(townSel.value));
+townSel.addEventListener("change", () => loadTown(townSel.value));
+$("play").addEventListener("click", () => S.playing ? pause() : play());
+$("slider").addEventListener("input", e => { pause(); setT(+e.target.value); });
+$("speed").addEventListener("change", e => S.speed = +e.target.value);
+$("fade").addEventListener("change", e => {
+  S.fade = +e.target.value;
+  $("fadeLbl").textContent = `+${S.fade} yrs`;
+  if (S.loaded) { S.Y = null; setT(S.t); }
+});
+if (matchMedia("(prefers-reduced-motion: reduce)").matches) $("speed").value = "1", S.speed = 1;
+</script>
+</body>
+</html>
