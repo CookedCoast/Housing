@@ -44,6 +44,11 @@ select,button{
   border-radius:6px;padding:7px 10px;cursor:pointer
 }
 select{flex:1;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chips:empty{display:none}
+.chip{display:inline-flex;align-items:center;gap:2px;font-size:12px;padding:2px 2px 2px 9px;border:1px solid var(--rule);border-radius:999px;background:#0d3170}
+.chip button{border:0;background:none;padding:0 6px;min-height:0!important;color:var(--muted);font-size:15px;line-height:1.2;cursor:pointer}
+.chip button:hover{color:#fff}
 button:hover,select:hover{border-color:#76b053}
 button:focus-visible,select:focus-visible,input:focus-visible,canvas:focus-visible{outline:2px solid var(--brand-green);outline-offset:2px}
 button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-blue);font-weight:600}
@@ -148,9 +153,11 @@ h1{color:#fff}
     <h1>Connecticut Built Over Time</h1>
   </div>
   <div class="row">
-    <select id="town" aria-label="Town"></select>
-    <button id="load" class="primary">Load town</button>
+    <select id="town" aria-label="Town or region"></select>
+    <button id="load" class="primary" title="Show only this town or region">Load</button>
+    <button id="add" title="Add this town or region to the map">+ Add</button>
   </div>
+  <div class="chips" id="chips" aria-label="Areas on the map"></div>
   <div id="status" role="status">Starting…</div>
   <div class="legend">
     <div>Just built</div>
@@ -197,6 +204,10 @@ const SVC = "https://services3.arcgis.com/3FL1kr7L4LvwA2Kb/arcgis/rest/services/
 const PAGE = 2000, CONCURRENCY = 6;
 const MIN_VALID = 1600, MAX_YEAR = new Date().getFullYear();
 const DEFAULT_TOWN = "Glastonbury";
+// Planning regions, matching the COG field in the parcel layer
+const COGS = ["Capitol Region","CT Metropolitan","Lower CT River Valley","Naugatuck Valley","Northeastern CT","Northwest Hills","South Central Regional","Southeastern CT","Western CT"];
+// Some towns are spelled differently in the source data
+const TOWN_ALIASES = { "Greenwich": ["Greenwhich"], "Deep River": ["Deep_river"] };
 
 const TOWNS = ["Andover","Ansonia","Ashford","Avon","Barkhamsted","Beacon Falls","Berlin","Bethany","Bethel","Bethlehem","Bloomfield","Bolton","Bozrah","Branford","Bridgeport","Bridgewater","Bristol","Brookfield","Brooklyn","Burlington","Canaan","Canterbury","Canton","Chaplin","Cheshire","Chester","Clinton","Colchester","Colebrook","Columbia","Cornwall","Coventry","Cromwell","Danbury","Darien","Deep River","Derby","Durham","East Granby","East Haddam","East Hampton","East Hartford","East Haven","East Lyme","East Windsor","Eastford","Easton","Ellington","Enfield","Essex","Fairfield","Farmington","Franklin","Glastonbury","Goshen","Granby","Greenwich","Griswold","Groton","Guilford","Haddam","Hamden","Hampton","Hartford","Hartland","Harwinton","Hebron","Kent","Killingly","Killingworth","Lebanon","Ledyard","Lisbon","Litchfield","Lyme","Madison","Manchester","Mansfield","Marlborough","Meriden","Middlebury","Middlefield","Middletown","Milford","Monroe","Montville","Morris","Naugatuck","New Britain","New Canaan","New Fairfield","New Hartford","New Haven","New London","New Milford","Newington","Newtown","Norfolk","North Branford","North Canaan","North Haven","North Stonington","Norwalk","Norwich","Old Lyme","Old Saybrook","Orange","Oxford","Plainfield","Plainville","Plymouth","Pomfret","Portland","Preston","Prospect","Putnam","Redding","Ridgefield","Rocky Hill","Roxbury","Salem","Salisbury","Scotland","Seymour","Sharon","Shelton","Sherman","Simsbury","Somers","South Windsor","Southbury","Southington","Sprague","Stafford","Stamford","Sterling","Stonington","Stratford","Suffield","Thomaston","Thompson","Tolland","Torrington","Trumbull","Union","Vernon","Voluntown","Wallingford","Warren","Washington","Waterbury","Waterford","Watertown","West Hartford","West Haven","Westbrook","Weston","Westport","Wethersfield","Willington","Wilton","Winchester","Windham","Windsor","Windsor Locks","Wolcott","Woodbridge","Woodbury","Woodstock"];
 
@@ -215,7 +226,7 @@ const setStatus = (msg, err=false) => { const s=$("status"); s.textContent = msg
 const S = {
   t: null, Y: null, playing: false, speed: 3, fade: 6,
   minY: 1700, maxY: MAX_YEAR,
-  polysByYear: new Map(), ptsByYear: new Map(),
+  ptsByYear: new Map(), areas: [],
   counts: new Map(), cum: new Map(), maxCount: 1, loaded: false
 };
 
@@ -254,22 +265,33 @@ map.on("load", () => {
     }
   }, firstSymbol);
 
-  map.on("click", "parcels-pts", e => {
+  map.on("click", "parcels-pts", async e => {
     const p = e.features[0].properties;
-    const area = p.Living_Area ? `${fmt(Math.round(p.Living_Area))} sq ft living area` : "";
-    new maplibregl.Popup({ maxWidth: "260px" }).setLngLat(e.lngLat).setHTML(
-      `<div class="pop-y">${esc(p.y)}</div>
-       <div><b>${esc(p.Location || "No address")}</b></div>
-       <div style="color:var(--muted)">${esc(p.State_Use_Description || "")}${area ? "<br>" + area : ""}</div>`
-    ).addTo(map);
+    const pop = new maplibregl.Popup({ maxWidth: "260px" }).setLngLat(e.lngLat)
+      .setHTML(`<div class="pop-y">${esc(p.y)}</div><div style="color:var(--muted)">Loading details…</div>`).addTo(map);
+    try {
+      const j = await q({ objectIds: p.id, outFields: "Location,Town_Name,State_Use_Description,Living_Area", returnGeometry: "false", f: "json" });
+      const a = (j.features && j.features[0] && j.features[0].attributes) || {};
+      const area = a.Living_Area ? `${fmt(Math.round(a.Living_Area))} sq ft living area` : "";
+      pop.setHTML(
+        `<div class="pop-y">${esc(p.y)}</div>
+         <div><b>${esc(a.Location || "No address")}</b>${a.Town_Name ? ", " + esc(a.Town_Name.replace(/_/g, " ")) : ""}</div>
+         <div style="color:var(--muted)">${esc(a.State_Use_Description || "")}${area ? "<br>" + area : ""}</div>`);
+    } catch (err) {
+      pop.setHTML(`<div class="pop-y">${esc(p.y)}</div><div style="color:var(--muted)">Couldn't load details.</div>`);
+    }
   });
   map.on("mouseenter", "parcels-pts", () => map.getCanvas().style.cursor = "pointer");
   map.on("mouseleave", "parcels-pts", () => map.getCanvas().style.cursor = "");
 
-  const urlTown = new URLSearchParams(location.search).get("town");
-  const start = TOWNS.find(t => t.toLowerCase() === (urlTown || "").toLowerCase()) || DEFAULT_TOWN;
-  $("town").value = start;
-  loadTown(start);
+  const qs = new URLSearchParams(location.search);
+  const lc = s => (s || "").toLowerCase();
+  const areas = [];
+  for (const r of qs.getAll("region")) { const c = COGS.find(x => lc(x) === lc(r)); if (c) areas.push({ type: "cog", name: c }); }
+  for (const t of qs.getAll("town")) { const n = TOWNS.find(x => lc(x) === lc(t)); if (n) areas.push({ type: "town", name: n }); }
+  if (!areas.length) areas.push({ type: "town", name: DEFAULT_TOWN });
+  $("town").value = areaKey(areas[0]);
+  loadAreas(areas);
 });
 
 // ---------- Data ----------
@@ -298,66 +320,84 @@ async function pool(items, n, fn) {
   await Promise.all(workers);
 }
 
+const areaKey = a => `${a.type}:${a.name}`;
+const areaLabel = a => a.type === "cog" ? `${a.name} region` : a.name;
+const sqlStr = s => `'${String(s).replace(/'/g, "''")}'`;
+function areaWhere(a) {
+  if (a.type === "cog") return `COG=${sqlStr(a.name)}`;
+  const names = [a.name, ...(TOWN_ALIASES[a.name] || [])].map(n => sqlStr(n.toUpperCase()));
+  return `UPPER(Town_Name) IN (${names.join(",")})`;
+}
+function describe(areas) {
+  const l = areas.map(areaLabel);
+  return l.length <= 3 ? l.join(", ") : `${l.slice(0, 2).join(", ")} + ${l.length - 2} more`;
+}
+function renderChips() {
+  const el = $("chips");
+  el.innerHTML = S.areas.length > 1 ? S.areas.map((a, i) =>
+    `<span class="chip">${esc(areaLabel(a))}<button type="button" data-i="${i}" aria-label="Remove ${esc(areaLabel(a))}">×</button></span>`).join("") : "";
+}
+$("chips").addEventListener("click", e => {
+  const b = e.target.closest("button[data-i]"); if (!b) return;
+  const next = S.areas.filter((_, i) => i !== +b.dataset.i);
+  if (next.length) loadAreas(next);
+});
+
 let loadToken = 0;
-async function loadTown(town) {
+async function loadAreas(areas) {
   const token = ++loadToken;
+  const label = describe(areas);
   pause();
-  $("load").disabled = true;
+  $("load").disabled = $("add").disabled = true;
   try {
-    const where = `UPPER(Town_Name)='${town.toUpperCase().replace(/'/g, "''")}' AND AYB>=${MIN_VALID} AND AYB<=${MAX_YEAR}`;
-    setStatus(`Counting parcels in ${town}…`);
+    const where = `(${areas.map(areaWhere).join(" OR ")}) AND AYB>=${MIN_VALID} AND AYB<=${MAX_YEAR}`;
+    setStatus(`Counting parcels in ${label}…`);
     const { count } = await q({ where, returnCountOnly: "true", f: "json" });
     if (token !== loadToken) return;
-    if (!count) { setStatus(`No parcels with a build year found for ${town}.`, true); return; }
+    if (!count) { setStatus(`No parcels with a build year found for ${label}.`, true); return; }
 
     const offsets = Array.from({ length: Math.ceil(count / PAGE) }, (_, i) => i * PAGE);
-    const feats = [];
-    setStatus(`Loading ${town}: 0 of ${fmt(count)} parcels`);
+    const pts = [];
+    setStatus(`Loading ${label}: 0 of ${fmt(count)} parcels`);
     await pool(offsets, CONCURRENCY, async off => {
+      // Only the parcel centroid and build year come down; details load when a point is clicked.
       const j = await q({
-        where, f: "geojson", outSR: 4326,
-        outFields: "OBJECTID,AYB,Location,State_Use_Description,Living_Area",
-        geometryPrecision: 6, maxAllowableOffset: 0.000008,
+        where, f: "json", outSR: 4326, outFields: "OBJECTID,AYB",
+        returnGeometry: "false", returnCentroid: "true",
         orderByFields: "OBJECTID", resultOffset: off, resultRecordCount: PAGE
       });
       if (token !== loadToken) return;
-      for (const f of j.features || []) if (f.geometry) feats.push(f);
-      setStatus(`Loading ${town}: ${fmt(feats.length)} of ${fmt(count)} parcels`);
+      for (const f of j.features || []) {
+        const c = f.centroid; if (!c || !isFinite(c.x) || !isFinite(c.y)) continue;
+        pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [+c.x.toFixed(6), +c.y.toFixed(6)] },
+                   properties: { id: f.attributes.OBJECTID, y: Math.round(f.attributes.AYB) } });
+      }
+      setStatus(`Loading ${label}: ${fmt(pts.length)} of ${fmt(count)} parcels`);
     });
     if (token !== loadToken) return;
-    ingest(feats);
-    setStatus(`${town}: ${fmt(feats.length)} parcels with a build year. Click any point for details.`);
+    S.areas = areas;
+    renderChips();
+    ingest(pts);
+    setStatus(`${label}: ${fmt(pts.length)} parcels with a build year. Click any point for details.`);
     play();
   } catch (e) {
-    if (token === loadToken) setStatus(`Couldn't load ${town}: ${e.message}. Check your connection and try again.`, true);
+    if (token === loadToken) setStatus(`Couldn't load ${label}: ${e.message}. Check your connection and try again.`, true);
   } finally {
-    if (token === loadToken) $("load").disabled = false;
+    if (token === loadToken) $("load").disabled = $("add").disabled = false;
   }
 }
 
-function ringCenter(geom) {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  const polys = geom.type === "MultiPolygon" ? geom.coordinates : [geom.coordinates];
-  for (const poly of polys) for (const [x, y] of poly[0]) {
-    if (x < minX) minX = x; if (x > maxX) maxX = x;
-    if (y < minY) minY = y; if (y > maxY) maxY = y;
-  }
-  return [[(minX + maxX) / 2, (minY + maxY) / 2], [minX, minY, maxX, maxY]];
-}
-
-function ingest(feats) {
-  S.polysByYear = new Map(); S.ptsByYear = new Map(); S.counts = new Map(); S.cum = new Map();
+function ingest(pts) {
+  S.ptsByYear = new Map(); S.counts = new Map(); S.cum = new Map();
   const bb = [Infinity, Infinity, -Infinity, -Infinity];
   const years = [];
-  for (const f of feats) {
-    const y = Math.round(f.properties.AYB);
-    f.properties.y = y;
-    const [c, b] = ringCenter(f.geometry);
-    bb[0] = Math.min(bb[0], b[0]); bb[1] = Math.min(bb[1], b[1]);
-    bb[2] = Math.max(bb[2], b[2]); bb[3] = Math.max(bb[3], b[3]);
-    if (!S.polysByYear.has(y)) { S.polysByYear.set(y, []); S.ptsByYear.set(y, []); }
-    S.polysByYear.get(y).push(f);
-    S.ptsByYear.get(y).push({ type: "Feature", geometry: { type: "Point", coordinates: c }, properties: f.properties });
+  for (const f of pts) {
+    const y = f.properties.y;
+    const [x, yy] = f.geometry.coordinates;
+    bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], yy);
+    bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], yy);
+    if (!S.ptsByYear.has(y)) S.ptsByYear.set(y, []);
+    S.ptsByYear.get(y).push(f);
     S.counts.set(y, (S.counts.get(y) || 0) + 1);
     years.push(y);
   }
@@ -372,7 +412,7 @@ function ingest(feats) {
   for (let y = S.minY; y <= S.maxY; y++) S.maxCount = Math.max(S.maxCount, S.counts.get(y) || 0);
   S.firstYear = years[0];
 
-  map.getSource("pts").setData({ type: "FeatureCollection", features: [...S.ptsByYear.values()].flat() });
+  map.getSource("pts").setData({ type: "FeatureCollection", features: pts });
   if (isFinite(bb[0])) {
     const mobile = innerWidth <= 640;
     map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], {
@@ -512,9 +552,16 @@ $("decLegend").innerHTML = DEC_COLORS.map((c, i) => `<div><span style="backgroun
 
 // ---------- Controls ----------
 const townSel = $("town");
-for (const t of TOWNS) townSel.add(new Option(t, t));
-$("load").addEventListener("click", () => loadTown(townSel.value));
-townSel.addEventListener("change", () => loadTown(townSel.value));
+const grp = (label, items) => { const g = document.createElement("optgroup"); g.label = label; for (const a of items) g.append(new Option(areaLabel(a), areaKey(a))); townSel.append(g); };
+grp("Planning regions", COGS.map(name => ({ type: "cog", name })));
+grp("Towns", TOWNS.map(name => ({ type: "town", name })));
+const selectedArea = () => { const [type, ...rest] = townSel.value.split(":"); return { type, name: rest.join(":") }; };
+$("load").addEventListener("click", () => loadAreas([selectedArea()]));
+$("add").addEventListener("click", () => {
+  const a = selectedArea();
+  if (S.areas.some(x => areaKey(x) === areaKey(a))) return;
+  loadAreas([...S.areas, a]);
+});
 $("play").addEventListener("click", () => S.playing ? pause() : play());
 $("slider").addEventListener("input", e => { pause(); setT(+e.target.value); });
 $("speed").addEventListener("change", e => S.speed = +e.target.value);
