@@ -44,6 +44,11 @@ select,button{
   border-radius:6px;padding:7px 10px;cursor:pointer
 }
 select{flex:1;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chips:empty{display:none}
+.chip{display:inline-flex;align-items:center;gap:2px;font-size:12px;padding:2px 2px 2px 9px;border:1px solid var(--rule);border-radius:999px;background:#0d3170}
+.chip button{border:0;background:none;padding:0 6px;min-height:0!important;color:var(--muted);font-size:15px;line-height:1.2;cursor:pointer}
+.chip button:hover{color:#fff}
 button:hover,select:hover{border-color:#76b053}
 button:focus-visible,select:focus-visible,input:focus-visible,canvas:focus-visible{outline:2px solid var(--brand-green);outline-offset:2px}
 button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-blue);font-weight:600}
@@ -52,7 +57,8 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
 .legend{display:grid;gap:6px;font-size:12px;color:var(--muted)}
 .ramp{height:8px;border-radius:4px}
 .ramp.glow{background:linear-gradient(90deg,var(--flash),#ffd166 20%,#ff7a45 60%,rgba(194,65,12,0))}
-.ramp.era{background:linear-gradient(90deg,#24305e,#2f4f8a,#3a76a8,#3f9fb5,#59c2b0,#9be3c6)}
+.dec-legend{display:grid;grid-template-columns:repeat(7,1fr);gap:4px 2px;font:10px/1.2 var(--f-mono)}
+.dec-legend span{display:block;height:10px;border-radius:2px;margin-bottom:2px}
 .ramp-labels{display:flex;justify-content:space-between;font:11px var(--f-mono)}
 .note{font-size:12px;color:var(--muted);margin:0}
 
@@ -69,6 +75,11 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
 .stats b{color:var(--text);font-weight:500}
 .timeline{display:grid;gap:8px;min-width:0}
 #hist{width:100%;height:84px;display:block;cursor:ew-resize;touch-action:none}
+.era-line{font-size:12.5px;line-height:1.35;color:var(--muted);min-height:1.35em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.era-line b{color:var(--text);font-weight:600}
+.era-line .yrs{font:11px var(--f-mono);color:var(--muted)}
+.era-line .evt{color:var(--ember);font-weight:600}
+@media (max-width:640px){ .era-line{font-size:11.5px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical} }
 #slider{width:100%;accent-color:var(--brand-green);margin:0}
 .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
 .controls label{display:flex;gap:6px;align-items:center}
@@ -80,6 +91,27 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
 .maplibregl-popup-close-button{color:var(--muted)}
 .pop-y{font:800 26px/1 var(--f-display);color:var(--ember)}
 .maplibregl-ctrl-bottom-right{bottom:150px}
+.types{
+  position:fixed;top:calc(16px + env(safe-area-inset-top,0px));right:calc(16px + env(safe-area-inset-right,0px));z-index:2;
+  width:300px;background:var(--panel);backdrop-filter:blur(8px);border:1px solid var(--rule);border-radius:10px;
+  padding:12px 14px;display:none;gap:8px
+}
+.types.open{display:grid}
+.types-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.types-title{font:700 14px/1.2 var(--f-body)}
+.types-sub{font:12px/1.3 var(--f-mono);color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:4px 8px;font-size:12px;background:transparent;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--brand-blue);color:#fff}
+#typesChart{width:100%;height:120px;display:block;cursor:crosshair}
+.types-legend{display:grid;gap:3px;font-size:12px}
+.types-legend .r{display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:center}
+.types-legend i{width:10px;height:10px;border-radius:2px;display:block}
+.types-legend b{font:500 12px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--text)}
+.types-legend .r.zero{color:var(--muted)}
+.types-note{font-size:11px;line-height:1.35;color:var(--muted);margin:0}
+#typesBtn[aria-expanded="true"]{background:var(--brand-blue);border-color:var(--brand-blue);color:#fff}
+@media (max-width:1100px){ .types{width:260px} }
 
 @media (max-width:640px){
   .card{padding:12px;gap:10px}
@@ -90,6 +122,10 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
   #year{font-size:48px}
   #hist{height:64px}
   .maplibregl-ctrl-bottom-right{bottom:220px}
+  .types{top:auto;bottom:calc(196px + env(safe-area-inset-bottom,0px));left:8px;right:8px;width:auto;padding:10px 12px;gap:6px}
+  #typesChart{height:84px}
+  .types-note{display:none}
+  .types-legend{grid-template-columns:1fr 1fr;column-gap:12px}
 }
 
 /* SECOG branding (colors from secogct.gov) */
@@ -101,6 +137,31 @@ h1{color:#fff}
 /* Mobile layout */
 .card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .info-btn{display:none}
+.card-btns{display:inline-flex;gap:6px;align-items:center}
+.about-btn{font-size:12px;padding:5px 10px}
+.splash{
+  width:min(600px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:0;border:1px solid var(--rule);border-radius:12px;
+  background:#07265c;color:var(--text);box-shadow:0 20px 60px rgba(0,0,0,.45);overflow:hidden;
+  display:none;flex-direction:column
+}
+.splash[open]{display:flex}
+.splash::backdrop{background:rgba(4,16,40,.55);backdrop-filter:blur(2px)}
+.splash-body{overflow-y:auto;padding:22px 24px 8px;border-top:4px solid var(--brand-green)}
+.splash h2{font:800 30px/1 var(--f-display);text-transform:uppercase;margin:6px 0 10px}
+.splash h3{font:700 13px/1.2 var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--brand-green);margin:18px 0 6px}
+.splash p,.splash li{font-size:14px;line-height:1.5;margin:0}
+.splash .lede{font-size:15px;color:#e6ecf7}
+.splash ul,.splash ol{margin:6px 0 0;padding-left:20px;display:grid;gap:5px}
+.splash .caveat{margin-top:16px;font-size:12.5px;color:var(--muted)}
+.splash #dataDate{color:var(--muted)}
+.splash-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 24px;border-top:1px solid var(--rule);background:#0a2d66}
+.noshow{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center;cursor:pointer}
+@media (max-width:640px){
+  .splash-body{padding:16px 16px 6px}
+  .splash h2{font-size:24px}
+  .splash-foot{padding:10px 16px}
+  .about-btn{font-size:12px;padding:6px 10px}
+}
 @media (max-width:640px){
   .card{top:calc(8px + env(safe-area-inset-top,0px));left:calc(8px + env(safe-area-inset-left,0px));width:calc(100vw - 16px);padding:10px 12px;gap:8px;max-height:none}
   .card .eyebrow{display:none}
@@ -141,25 +202,42 @@ h1{color:#fff}
 <div id="map" aria-label="Map of parcels by year built"></div>
 
 <section class="card">
-  <div class="card-top"><a class="brand" href="https://secogct.gov" target="_blank" rel="noopener" title="Southeastern Connecticut Council of Governments"><svg xmlns="http://www.w3.org/2000/svg" width="171.275" height="36" viewBox="0 0 171.275 36" role="img" aria-label="SECOG"><path d="M18.362,40.907v7.736a.5.5,0,0,1-.5.5H8.546A7.886,7.886,0,0,1,.668,41.265v-.358a.5.5,0,0,1,.5-.5h16.7a.5.5,0,0,1,.5.5" transform="translate(-0.443 -26.77)" fill="#00619f"/><path d="M70.737,48.371v.294a.476.476,0,0,1-.476.477H57.685a.476.476,0,0,1-.476-.477V40.884a.476.476,0,0,1,.476-.476h5.089a7.973,7.973,0,0,1,7.964,7.963" transform="translate(-37.9 -26.77)" fill="#2a6b2e"/><path d="M10,.859V11.311a.859.859,0,0,1-.859.858H.858A.858.858,0,0,1,0,11.311V9.139A9.15,9.15,0,0,1,9.139,0,.86.86,0,0,1,10,.859" transform="translate(0 0)" fill="#07265c"/><path d="M45.441,11.931a.52.52,0,0,1-.433.237H34.329a.562.562,0,0,1-.537-.583v-11A.563.563,0,0,1,34.329,0h6.3a.536.536,0,0,1,.493.352l4.382,11a.623.623,0,0,1-.061.578" transform="translate(-22.387 0)" fill="#6b993c"/><path d="M72.146,2.785V9.553a2.608,2.608,0,0,1-2.592,2.618h-4.3a.518.518,0,0,1-.476-.316L60.373.74a.525.525,0,0,1,.046-.5.506.506,0,0,1,.429-.232H69.4a2.762,2.762,0,0,1,2.744,2.773" transform="translate(-39.968 -0.008)" fill="#00619f"/><path d="M77.693,73.489a9.149,9.149,0,0,1-9.139,9.138.858.858,0,0,1-.857-.858V71.318a.859.859,0,0,1,.857-.859h8.282a.859.859,0,0,1,.858.859Z" transform="translate(-44.848 -46.678)" fill="#6b993c"/><path d="M39.815,82.579h-6.3a.589.589,0,0,1-.541-.384l-4.381-11a.632.632,0,0,1,.541-.885H39.815a.613.613,0,0,1,.588.635v11a.613.613,0,0,1-.588.635" transform="translate(-18.913 -46.579)" fill="#07265c"/><path d="M13.708,82.4a.507.507,0,0,1-.43.232H4.725a2.762,2.762,0,0,1-2.744-2.773V73.092a2.608,2.608,0,0,1,2.591-2.618h4.3a.514.514,0,0,1,.475.316l4.406,11.116a.527.527,0,0,1-.046.5" transform="translate(-1.312 -46.688)" fill="#2a6b2e"/><g fill="#07265c"><path d="M139.349,40.163a15.711,15.711,0,0,1-6.049-1.015,8.233,8.233,0,0,1-3.688-2.829,7.892,7.892,0,0,1-1.385-4.234h5.853a3.709,3.709,0,0,0,1.424,2.342,6.715,6.715,0,0,0,3.844.819,8.016,8.016,0,0,0,4.039-.761,2.409,2.409,0,0,0,1.229-2.166,2.628,2.628,0,0,0-.722-1.912,5.729,5.729,0,0,0-2.2-1.268,28.073,28.073,0,0,0-3.863-1,19.294,19.294,0,0,1-4.761-1.522,7.12,7.12,0,0,1-3.024-2.654,7.985,7.985,0,0,1-1.034-4.254,6.79,6.79,0,0,1,1.268-4.117,8.291,8.291,0,0,1,3.59-2.712,14.1,14.1,0,0,1,5.483-.975,14.275,14.275,0,0,1,5.639.956,7.508,7.508,0,0,1,3.356,2.673A8.418,8.418,0,0,1,149.69,19.6h-5.815a3.3,3.3,0,0,0-1.288-2.088,5.83,5.83,0,0,0-3.239-.683,6.143,6.143,0,0,0-3.4.742,2.294,2.294,0,0,0-1.093,1.99,2.637,2.637,0,0,0,1.5,2.38,16.282,16.282,0,0,0,4.741,1.483,26.831,26.831,0,0,1,3.961,1.054,9.837,9.837,0,0,1,2.946,1.619,6.485,6.485,0,0,1,1.834,2.4,8.331,8.331,0,0,1,.624,3.4,7.445,7.445,0,0,1-1.307,4.371,8.3,8.3,0,0,1-3.785,2.888,15.934,15.934,0,0,1-6.029,1.015" transform="translate(-84.949 -7.89)"/><path d="M206.849,40.614V13.3h19.043v4.839H212.7v6.088h12.019v4.683H212.7v6.868h13.19v4.839Z" transform="translate(-137.035 -8.81)"/><path d="M284.931,40.163a13.746,13.746,0,0,1-6.342-1.424,10,10,0,0,1-4.37-4.488,17.513,17.513,0,0,1-1.581-8.019v-.78a17.915,17.915,0,0,1,.937-6.146,10.964,10.964,0,0,1,2.634-4.195,10.675,10.675,0,0,1,3.922-2.42,14.406,14.406,0,0,1,4.8-.78,15.876,15.876,0,0,1,4.312.566,11.2,11.2,0,0,1,3.571,1.7A8.483,8.483,0,0,1,295.33,17.1a10.283,10.283,0,0,1,1.112,4.215h-6.088a5.267,5.267,0,0,0-1.873-3.4,5.717,5.717,0,0,0-3.551-1.093,6.051,6.051,0,0,0-3.044.8A5.743,5.743,0,0,0,279.6,20.3a12.358,12.358,0,0,0-.878,5.151v.78a14.549,14.549,0,0,0,.546,4.312,7.693,7.693,0,0,0,1.444,2.771,5.31,5.31,0,0,0,1.99,1.483,5.8,5.8,0,0,0,2.225.449,5.7,5.7,0,0,0,3.668-1.151,4.967,4.967,0,0,0,1.756-3.337h6.088a11.315,11.315,0,0,1-1.132,4.351,8.225,8.225,0,0,1-2.458,2.927,10.1,10.1,0,0,1-3.551,1.619,18,18,0,0,1-4.371.507" transform="translate(-180.62 -7.89)"/><path d="M363.328,40.163a15.1,15.1,0,0,1-4.878-.78,11.511,11.511,0,0,1-4.117-2.439,11.253,11.253,0,0,1-2.849-4.312,17.634,17.634,0,0,1-1.034-6.4v-.78a16.371,16.371,0,0,1,1.034-6.146,11.207,11.207,0,0,1,2.849-4.195,11.676,11.676,0,0,1,4.117-2.42,15.637,15.637,0,0,1,9.756,0,11.682,11.682,0,0,1,4.117,2.42,11.216,11.216,0,0,1,2.849,4.195,16.385,16.385,0,0,1,1.034,6.146v.78a17.65,17.65,0,0,1-1.034,6.4,11.261,11.261,0,0,1-2.849,4.312,11.517,11.517,0,0,1-4.117,2.439,15.1,15.1,0,0,1-4.878.78m0-4.917a6.866,6.866,0,0,0,3.337-.839,6.066,6.066,0,0,0,2.5-2.81,12.463,12.463,0,0,0,.956-5.366v-.78a11.394,11.394,0,0,0-.956-5.093,6,6,0,0,0-2.5-2.712,7.163,7.163,0,0,0-6.654,0,5.966,5.966,0,0,0-2.517,2.712,11.39,11.39,0,0,0-.956,5.093v.78a12.459,12.459,0,0,0,.956,5.366,6.027,6.027,0,0,0,2.517,2.81,6.9,6.9,0,0,0,3.317.839" transform="translate(-232.169 -7.89)"/><path d="M447.3,40.163a14.41,14.41,0,0,1-6.5-1.424,10.323,10.323,0,0,1-4.527-4.488,16.808,16.808,0,0,1-1.659-8.019v-.78a17,17,0,0,1,.995-6.127,10.917,10.917,0,0,1,6.751-6.634,14.332,14.332,0,0,1,4.741-.78,15.189,15.189,0,0,1,4.273.566,10.6,10.6,0,0,1,3.414,1.678,9.184,9.184,0,0,1,2.459,2.81,12,12,0,0,1,1.366,3.961h-6.088a6.493,6.493,0,0,0-1.4-2.517,4.614,4.614,0,0,0-1.893-1.21,6.946,6.946,0,0,0-2.127-.331,6.4,6.4,0,0,0-3.18.819,5.742,5.742,0,0,0-2.342,2.693,12.133,12.133,0,0,0-.878,5.073v.78a14.181,14.181,0,0,0,.546,4.254,7.191,7.191,0,0,0,1.5,2.751,5.853,5.853,0,0,0,2.127,1.5,6.457,6.457,0,0,0,2.42.468,7.658,7.658,0,0,0,3.044-.585,5.166,5.166,0,0,0,2.244-1.854,6.533,6.533,0,0,0,1.034-3.259h-5.542V25.451h11.122v1.561a18.376,18.376,0,0,1-.839,5.873,10.653,10.653,0,0,1-2.42,4.1,9.783,9.783,0,0,1-3.766,2.4,14.434,14.434,0,0,1-4.878.78" transform="translate(-287.931 -7.89)"/></g></svg></a><button type="button" id="infoBtn" class="info-btn" aria-expanded="false">Legend &amp; info</button></div>
+  <div class="card-top"><a class="brand" href="https://secogct.gov" target="_blank" rel="noopener" title="Southeastern Connecticut Council of Governments"><svg xmlns="http://www.w3.org/2000/svg" width="171.275" height="36" viewBox="0 0 171.275 36" role="img" aria-label="SECOG"><path d="M18.362,40.907v7.736a.5.5,0,0,1-.5.5H8.546A7.886,7.886,0,0,1,.668,41.265v-.358a.5.5,0,0,1,.5-.5h16.7a.5.5,0,0,1,.5.5" transform="translate(-0.443 -26.77)" fill="#00619f"/><path d="M70.737,48.371v.294a.476.476,0,0,1-.476.477H57.685a.476.476,0,0,1-.476-.477V40.884a.476.476,0,0,1,.476-.476h5.089a7.973,7.973,0,0,1,7.964,7.963" transform="translate(-37.9 -26.77)" fill="#2a6b2e"/><path d="M10,.859V11.311a.859.859,0,0,1-.859.858H.858A.858.858,0,0,1,0,11.311V9.139A9.15,9.15,0,0,1,9.139,0,.86.86,0,0,1,10,.859" transform="translate(0 0)" fill="#07265c"/><path d="M45.441,11.931a.52.52,0,0,1-.433.237H34.329a.562.562,0,0,1-.537-.583v-11A.563.563,0,0,1,34.329,0h6.3a.536.536,0,0,1,.493.352l4.382,11a.623.623,0,0,1-.061.578" transform="translate(-22.387 0)" fill="#6b993c"/><path d="M72.146,2.785V9.553a2.608,2.608,0,0,1-2.592,2.618h-4.3a.518.518,0,0,1-.476-.316L60.373.74a.525.525,0,0,1,.046-.5.506.506,0,0,1,.429-.232H69.4a2.762,2.762,0,0,1,2.744,2.773" transform="translate(-39.968 -0.008)" fill="#00619f"/><path d="M77.693,73.489a9.149,9.149,0,0,1-9.139,9.138.858.858,0,0,1-.857-.858V71.318a.859.859,0,0,1,.857-.859h8.282a.859.859,0,0,1,.858.859Z" transform="translate(-44.848 -46.678)" fill="#6b993c"/><path d="M39.815,82.579h-6.3a.589.589,0,0,1-.541-.384l-4.381-11a.632.632,0,0,1,.541-.885H39.815a.613.613,0,0,1,.588.635v11a.613.613,0,0,1-.588.635" transform="translate(-18.913 -46.579)" fill="#07265c"/><path d="M13.708,82.4a.507.507,0,0,1-.43.232H4.725a2.762,2.762,0,0,1-2.744-2.773V73.092a2.608,2.608,0,0,1,2.591-2.618h4.3a.514.514,0,0,1,.475.316l4.406,11.116a.527.527,0,0,1-.046.5" transform="translate(-1.312 -46.688)" fill="#2a6b2e"/><g fill="#07265c"><path d="M139.349,40.163a15.711,15.711,0,0,1-6.049-1.015,8.233,8.233,0,0,1-3.688-2.829,7.892,7.892,0,0,1-1.385-4.234h5.853a3.709,3.709,0,0,0,1.424,2.342,6.715,6.715,0,0,0,3.844.819,8.016,8.016,0,0,0,4.039-.761,2.409,2.409,0,0,0,1.229-2.166,2.628,2.628,0,0,0-.722-1.912,5.729,5.729,0,0,0-2.2-1.268,28.073,28.073,0,0,0-3.863-1,19.294,19.294,0,0,1-4.761-1.522,7.12,7.12,0,0,1-3.024-2.654,7.985,7.985,0,0,1-1.034-4.254,6.79,6.79,0,0,1,1.268-4.117,8.291,8.291,0,0,1,3.59-2.712,14.1,14.1,0,0,1,5.483-.975,14.275,14.275,0,0,1,5.639.956,7.508,7.508,0,0,1,3.356,2.673A8.418,8.418,0,0,1,149.69,19.6h-5.815a3.3,3.3,0,0,0-1.288-2.088,5.83,5.83,0,0,0-3.239-.683,6.143,6.143,0,0,0-3.4.742,2.294,2.294,0,0,0-1.093,1.99,2.637,2.637,0,0,0,1.5,2.38,16.282,16.282,0,0,0,4.741,1.483,26.831,26.831,0,0,1,3.961,1.054,9.837,9.837,0,0,1,2.946,1.619,6.485,6.485,0,0,1,1.834,2.4,8.331,8.331,0,0,1,.624,3.4,7.445,7.445,0,0,1-1.307,4.371,8.3,8.3,0,0,1-3.785,2.888,15.934,15.934,0,0,1-6.029,1.015" transform="translate(-84.949 -7.89)"/><path d="M206.849,40.614V13.3h19.043v4.839H212.7v6.088h12.019v4.683H212.7v6.868h13.19v4.839Z" transform="translate(-137.035 -8.81)"/><path d="M284.931,40.163a13.746,13.746,0,0,1-6.342-1.424,10,10,0,0,1-4.37-4.488,17.513,17.513,0,0,1-1.581-8.019v-.78a17.915,17.915,0,0,1,.937-6.146,10.964,10.964,0,0,1,2.634-4.195,10.675,10.675,0,0,1,3.922-2.42,14.406,14.406,0,0,1,4.8-.78,15.876,15.876,0,0,1,4.312.566,11.2,11.2,0,0,1,3.571,1.7A8.483,8.483,0,0,1,295.33,17.1a10.283,10.283,0,0,1,1.112,4.215h-6.088a5.267,5.267,0,0,0-1.873-3.4,5.717,5.717,0,0,0-3.551-1.093,6.051,6.051,0,0,0-3.044.8A5.743,5.743,0,0,0,279.6,20.3a12.358,12.358,0,0,0-.878,5.151v.78a14.549,14.549,0,0,0,.546,4.312,7.693,7.693,0,0,0,1.444,2.771,5.31,5.31,0,0,0,1.99,1.483,5.8,5.8,0,0,0,2.225.449,5.7,5.7,0,0,0,3.668-1.151,4.967,4.967,0,0,0,1.756-3.337h6.088a11.315,11.315,0,0,1-1.132,4.351,8.225,8.225,0,0,1-2.458,2.927,10.1,10.1,0,0,1-3.551,1.619,18,18,0,0,1-4.371.507" transform="translate(-180.62 -7.89)"/><path d="M363.328,40.163a15.1,15.1,0,0,1-4.878-.78,11.511,11.511,0,0,1-4.117-2.439,11.253,11.253,0,0,1-2.849-4.312,17.634,17.634,0,0,1-1.034-6.4v-.78a16.371,16.371,0,0,1,1.034-6.146,11.207,11.207,0,0,1,2.849-4.195,11.676,11.676,0,0,1,4.117-2.42,15.637,15.637,0,0,1,9.756,0,11.682,11.682,0,0,1,4.117,2.42,11.216,11.216,0,0,1,2.849,4.195,16.385,16.385,0,0,1,1.034,6.146v.78a17.65,17.65,0,0,1-1.034,6.4,11.261,11.261,0,0,1-2.849,4.312,11.517,11.517,0,0,1-4.117,2.439,15.1,15.1,0,0,1-4.878.78m0-4.917a6.866,6.866,0,0,0,3.337-.839,6.066,6.066,0,0,0,2.5-2.81,12.463,12.463,0,0,0,.956-5.366v-.78a11.394,11.394,0,0,0-.956-5.093,6,6,0,0,0-2.5-2.712,7.163,7.163,0,0,0-6.654,0,5.966,5.966,0,0,0-2.517,2.712,11.39,11.39,0,0,0-.956,5.093v.78a12.459,12.459,0,0,0,.956,5.366,6.027,6.027,0,0,0,2.517,2.81,6.9,6.9,0,0,0,3.317.839" transform="translate(-232.169 -7.89)"/><path d="M447.3,40.163a14.41,14.41,0,0,1-6.5-1.424,10.323,10.323,0,0,1-4.527-4.488,16.808,16.808,0,0,1-1.659-8.019v-.78a17,17,0,0,1,.995-6.127,10.917,10.917,0,0,1,6.751-6.634,14.332,14.332,0,0,1,4.741-.78,15.189,15.189,0,0,1,4.273.566,10.6,10.6,0,0,1,3.414,1.678,9.184,9.184,0,0,1,2.459,2.81,12,12,0,0,1,1.366,3.961h-6.088a6.493,6.493,0,0,0-1.4-2.517,4.614,4.614,0,0,0-1.893-1.21,6.946,6.946,0,0,0-2.127-.331,6.4,6.4,0,0,0-3.18.819,5.742,5.742,0,0,0-2.342,2.693,12.133,12.133,0,0,0-.878,5.073v.78a14.181,14.181,0,0,0,.546,4.254,7.191,7.191,0,0,0,1.5,2.751,5.853,5.853,0,0,0,2.127,1.5,6.457,6.457,0,0,0,2.42.468,7.658,7.658,0,0,0,3.044-.585,5.166,5.166,0,0,0,2.244-1.854,6.533,6.533,0,0,0,1.034-3.259h-5.542V25.451h11.122v1.561a18.376,18.376,0,0,1-.839,5.873,10.653,10.653,0,0,1-2.42,4.1,9.783,9.783,0,0,1-3.766,2.4,14.434,14.434,0,0,1-4.878.78" transform="translate(-287.931 -7.89)"/></g></svg></a><span class="card-btns"><button type="button" id="aboutBtn" class="about-btn" aria-haspopup="dialog">About</button><button type="button" id="infoBtn" class="info-btn" aria-expanded="false">Legend &amp; info</button></span></div>
   <div>
     <p class="eyebrow">CT CAMA &amp; Parcels · Actual Year Built</p>
     <h1>Connecticut Built Over Time</h1>
   </div>
   <div class="row">
-    <select id="town" aria-label="Town"></select>
-    <button id="load" class="primary">Load town</button>
+    <select id="town" aria-label="Town or region"></select>
+    <button id="load" class="primary" title="Show only this town or region">Load</button>
+    <button id="add" title="Add this town or region to the map">+ Add</button>
   </div>
+  <div class="chips" id="chips" aria-label="Areas on the map"></div>
   <div id="status" role="status">Starting…</div>
   <div class="legend">
     <div>Just built</div>
     <div class="ramp glow"></div>
     <div class="ramp-labels"><span>this year</span><span id="fadeLbl">+6 yrs</span></div>
-    <div>Settled, colored by era</div>
-    <div class="ramp era"></div>
-    <div class="ramp-labels"><span>1700</span><span>1850</span><span>1950</span><span>2015+</span></div>
+    <div>Decade built</div>
+    <div class="dec-legend" id="decLegend"></div>
   </div>
   <p class="note">AYB only describes buildings standing today, so demolished structures never appear and teardowns show up as new. Assessors often round older build years, which causes spikes at 1900, 1920, 1950.</p>
+</section>
+
+<section class="types open" id="types" aria-label="Home types over time">
+  <div class="types-head">
+    <div>
+      <div class="types-title">Home types</div>
+      <div class="types-sub" id="typesSub">Parcels standing</div>
+    </div>
+    <div class="seg" role="group" aria-label="Chart shows">
+      <button type="button" data-m="count" aria-pressed="true">Count</button>
+      <button type="button" data-m="share" aria-pressed="false">Share</button>
+    </div>
+  </div>
+  <canvas id="typesChart" tabindex="0" aria-label="Stacked area chart of parcels standing by home type, by year. Hover to read a year."></canvas>
+  <div class="types-legend" id="typesLegend"></div>
+  <p class="types-note">By the assessor's land-use description. Each parcel counts once, so a condo unit counts as one but an apartment building also counts as one.</p>
 </section>
 
 <section class="dock">
@@ -168,7 +246,8 @@ h1{color:#fff}
     <div class="stats">Built this year <b id="nYear">0</b><br>Standing, built by now <b id="nCum">0</b></div>
   </div>
   <div class="timeline">
-    <canvas id="hist" tabindex="0" aria-label="Buildings per year. Click or drag to jump to a year."></canvas>
+    <div class="era-line" id="eraLine" aria-live="polite"></div>
+    <canvas id="hist" tabindex="0" aria-label="Buildings per year, with shaded eras of Connecticut housing history. Click or drag to jump to a year."></canvas>
     <input id="slider" type="range" min="1700" max="2026" step="1" value="1700" aria-label="Year">
     <div class="controls">
       <button id="play">▶ Play</button>
@@ -180,6 +259,7 @@ h1{color:#fff}
           <option value="12">12 yr/s</option>
         </select>
       </label>
+      <button type="button" id="typesBtn" aria-controls="types" aria-expanded="true">Home types</button>
       <label>Glow lasts
         <select id="fade">
           <option value="3">3 yrs</option>
@@ -192,20 +272,113 @@ h1{color:#fff}
   </div>
 </section>
 
+<dialog id="splash" class="splash" aria-labelledby="splashTitle">
+  <div class="splash-body">
+    <p class="eyebrow">SECOG · Connecticut parcels</p>
+    <h2 id="splashTitle">Connecticut Built Over Time</h2>
+    <p class="lede">Every dot is a parcel, placed on the map in the year its main building was built. Press play and watch towns grow, from colonial village centers to postwar subdivisions to what's going up today.</p>
+
+    <h3>Where the data comes from</h3>
+    <p>The State of Connecticut's statewide <b>CAMA and Parcel layer</b>, compiled by the Connecticut GIS Office from municipal assessor records collected through the Councils of Government (C.G.S. §4d-90 to 92 and §7-100l). <span id="dataDate"></span></p>
+    <ul class="facts">
+      <li><b>Year built</b> is the assessor's "Actual Year Built" (AYB) field.</li>
+      <li><b>Home type</b> is grouped from each town's land-use description, which is worded differently from town to town.</li>
+      <li>Parcel locations are the center of each parcel. Details load from the state service when you click a dot.</li>
+    </ul>
+
+    <h3>How to use it</h3>
+    <ol class="steps">
+      <li><b>Pick a place.</b> Choose a town or one of the nine planning regions and press <b>Load</b>. Use <b>+ Add</b> to put several towns or regions on the map together.</li>
+      <li><b>Move through time.</b> Press <b>Play</b>, or drag the slider or the bar chart along the bottom to jump to any year. New buildings flash orange, then settle into their decade color. Shaded bands on the timeline mark key eras in Connecticut housing, orange markers flag turning points, and a caption explains what was happening.</li>
+      <li><b>Look closer.</b> Click any dot for its address, land use and living area.</li>
+      <li><b>Compare home types.</b> The Home types panel tracks single family, multi-family, condos and more. Switch to <b>Share</b> to see how the mix changes.</li>
+    </ol>
+
+    <h3>Trends to look for</h3>
+    <ul class="trends">
+      <li><b>Historic cores.</b> Deep indigo clusters mark village centers, mill towns and waterfronts built before 1900.</li>
+      <li><b>The postwar boom.</b> From the late 1940s to the 1970s, pink and magenta dots spread out from town centers along new roads.</li>
+      <li><b>A changing housing mix.</b> In Share view, watch 2–4 family houses shrink as a share of the total while condos and townhouses grow from the 1970s on.</li>
+      <li><b>Where building is happening now.</b> Orange dots show the 2010s and 2020s. See whether growth is infill near centers or new land at the edges.</li>
+      <li><b>Town vs. town.</b> Load two towns or regions to compare when they grew and what kind of housing they built.</li>
+    </ul>
+
+    <p class="caveat">Keep in mind: the data only describes buildings standing today. Demolished buildings never appear, a teardown shows up as new construction, and assessors often round old build years, which causes spikes at years like 1900 and 1950.</p>
+  </div>
+  <div class="splash-foot">
+    <label class="noshow"><input type="checkbox" id="splashHide"> Don't show this again</label>
+    <button type="button" id="splashGo" class="primary">Start exploring</button>
+  </div>
+</dialog>
+
 <script>
 const SVC = "https://services3.arcgis.com/3FL1kr7L4LvwA2Kb/arcgis/rest/services/Connecticut_CAMA_and_Parcel_Layer/FeatureServer/0";
 const PAGE = 2000, CONCURRENCY = 6;
 const MIN_VALID = 1600, MAX_YEAR = new Date().getFullYear();
-const DEFAULT_TOWN = "Glastonbury";
+const DEFAULT_REGION = "Southeastern CT";
+// Planning regions, matching the COG field in the parcel layer
+const COGS = ["Capitol Region","CT Metropolitan","Lower CT River Valley","Naugatuck Valley","Northeastern CT","Northwest Hills","South Central Regional","Southeastern CT","Western CT"];
+// Some towns are spelled differently in the source data
+const TOWN_ALIASES = { "Greenwich": ["Greenwhich"], "Deep River": ["Deep_river"] };
 
 const TOWNS = ["Andover","Ansonia","Ashford","Avon","Barkhamsted","Beacon Falls","Berlin","Bethany","Bethel","Bethlehem","Bloomfield","Bolton","Bozrah","Branford","Bridgeport","Bridgewater","Bristol","Brookfield","Brooklyn","Burlington","Canaan","Canterbury","Canton","Chaplin","Cheshire","Chester","Clinton","Colchester","Colebrook","Columbia","Cornwall","Coventry","Cromwell","Danbury","Darien","Deep River","Derby","Durham","East Granby","East Haddam","East Hampton","East Hartford","East Haven","East Lyme","East Windsor","Eastford","Easton","Ellington","Enfield","Essex","Fairfield","Farmington","Franklin","Glastonbury","Goshen","Granby","Greenwich","Griswold","Groton","Guilford","Haddam","Hamden","Hampton","Hartford","Hartland","Harwinton","Hebron","Kent","Killingly","Killingworth","Lebanon","Ledyard","Lisbon","Litchfield","Lyme","Madison","Manchester","Mansfield","Marlborough","Meriden","Middlebury","Middlefield","Middletown","Milford","Monroe","Montville","Morris","Naugatuck","New Britain","New Canaan","New Fairfield","New Hartford","New Haven","New London","New Milford","Newington","Newtown","Norfolk","North Branford","North Canaan","North Haven","North Stonington","Norwalk","Norwich","Old Lyme","Old Saybrook","Orange","Oxford","Plainfield","Plainville","Plymouth","Pomfret","Portland","Preston","Prospect","Putnam","Redding","Ridgefield","Rocky Hill","Roxbury","Salem","Salisbury","Scotland","Seymour","Sharon","Shelton","Sherman","Simsbury","Somers","South Windsor","Southbury","Southington","Sprague","Stafford","Stamford","Sterling","Stonington","Stratford","Suffield","Thomaston","Thompson","Tolland","Torrington","Trumbull","Union","Vernon","Voluntown","Wallingford","Warren","Washington","Waterbury","Waterford","Watertown","West Hartford","West Haven","Westbrook","Weston","Westport","Wethersfield","Willington","Wilton","Winchester","Windham","Windsor","Windsor Locks","Wolcott","Woodbridge","Woodbury","Woodstock"];
 
-// Era colors for settled buildings (by year built)
-const ERA = [1700,"#24305e", 1850,"#2f4f8a", 1920,"#3a76a8", 1960,"#3f9fb5", 1990,"#59c2b0", 2015,"#9be3c6"];
-const eraColor = y => {
-  for (let i = ERA.length - 2; i >= 0; i -= 2) if (y >= ERA[i]) return ERA[i+1];
-  return ERA[1];
-};
+// Decade colors for built parcels: pre-1900, then 1900s through 2020s (sequential, old = deep indigo, new = orange)
+const DEC_COLORS = ["#0d0887","#2f0596","#4903a0","#6300a7","#7a02a8","#8f0da4","#a51f99","#b6308b","#c6417d","#d5536f","#e16462","#eb7655","#f58b47","#fb9f3a"];
+const DEC_LABELS = ["<1900","1900s","1910s","1920s","1930s","1940s","1950s","1960s","1970s","1980s","1990s","2000s","2010s","2020s"];
+const decIdx = y => y < 1900 ? 0 : Math.min(DEC_COLORS.length - 1, Math.floor((y - 1900) / 10) + 1);
+const eraColor = y => DEC_COLORS[decIdx(y)];
+// Home types, classified from the free-text State_Use_Description (it varies by town).
+// Order = stack order (bottom to top); colors validated as a set on the panel's navy surface.
+const TYPES = [
+  { key: "sf",    label: "Single family",      color: "#3987e5" },
+  { key: "small", label: "2–4 family",         color: "#d95926" },
+  { key: "condo", label: "Condo / townhouse",  color: "#199e70" },
+  { key: "multi", label: "Apartments / multi-dwelling",color: "#c98500" },
+  { key: "mobile",label: "Mobile home",        color: "#d55181" },
+  { key: "other", label: "Non-residential / other", color: "#7f8aa6" }
+];
+function classifyUse(desc) {
+  const s = String(desc || "").toLowerCase();
+  if (/(comm|com'l|office|indus|ind|retail|bus|prof)[a-z.']* *condo/.test(s)) return 5;
+  if (/condo|townh|town house|\bpud\b|planned (dev|com)|cluster|co-?op/.test(s)) return 2;
+  if (/mobile|manufact|\bmh\b|trailer/.test(s)) return 4;
+  if (/acc(essory|\.)?\s*apt|w\/\s*apt|in-?law/.test(s)) return 0;
+  if (/\bapts?\s*-?\s*(4|four)\b|\b4[- ]?unit/.test(s)) return 1;
+  if (/apart|\bapts?\d*\b|multi|5\+|five|six|seven|eight|\b([5-9]|1\d)[- ]?(fam|unit)|\d{2,} ?units?/.test(s)) return 3;
+  if (/two|three|four|\b[234][- ]?fam|duplex|\b[234] ?units?\b/.test(s)) return 1;
+  if (/comm|indus|exempt|exmpt|retail|office|off bldg|store|shop|church|mixed|mix use|vac|land|garage|motel|hotel|auto|bank|rest|school|util|farm|use assess/.test(s)) return 5;
+  if (/single|one[- ]?fam|\b1[- ]?fam|sfr|\bsf|sfam|res(id)?|dwel|water|wtrft|ocean|ocn|lake|m(dl)?[- ]?0?1\b/.test(s)) return 0;
+  return 5;
+}
+// Periods of significance for Connecticut housing and sprawl, shaded on the timeline.
+const ERAS = [
+  { from: 1600, to: 1819, name: "Colonial & farm towns", short: "Colonial", note: "Village greens, farmhouses and seaports; most people farm." },
+  { from: 1820, to: 1889, name: "Industrial era", short: "Industrial", note: "Water-powered mills and factories pull workers into river towns and cities." },
+  { from: 1890, to: 1929, name: "Streetcar & three-decker era", short: "Streetcar", note: "Trolley lines extend the city; two- and three-family houses fill in around factories and downtowns." },
+  { from: 1930, to: 1945, name: "Depression & war", short: "Depr./war", note: "Building collapses in the Depression; war industry brings emergency housing near shipyards and plants." },
+  { from: 1946, to: 1973, name: "Postwar suburban boom", short: "Postwar boom", note: "GI Bill and FHA mortgages, cars and new highways fuel single-family subdivisions on former farmland." },
+  { from: 1974, to: 1990, name: "Condos & late suburbs", short: "Condos", note: "Rising land and energy costs bring condos and townhouses; the 1980s boom ends in a sharp early-1990s bust." },
+  { from: 1991, to: 2008, name: "Exurban spread", short: "Exurbs", note: "Large-lot houses push into rural towns at the edges of metro areas while older centers grow slowly." },
+  { from: 2009, to: 9999, name: "After the housing crash", short: "Post-2008", note: "Construction stays low after 2008; new building shifts toward apartments, infill and downtowns." }
+];
+const EVENTS = [
+  { y: 1929, text: "Stock market crash; the Great Depression begins" },
+  { y: 1944, text: "GI Bill offers veterans low-cost home loans" },
+  { y: 1958, text: "Connecticut Turnpike (I-95) opens across the state" },
+  { y: 1989, text: "CT Affordable Housing Appeals Act (§8-30g) passes" },
+  { y: 2008, text: "Housing crash and Great Recession" }
+];
+const eraOf = y => ERAS.find(e => y >= e.from && y <= e.to) || ERAS[0];
+function updateEraLine(Y) {
+  const e = eraOf(Y), ev = EVENTS.filter(v => Y >= v.y && Y - v.y <= 3).pop();
+  const yrs = `${e.from <= 1600 ? "before 1820" : e.to >= 9999 ? e.from + "–now" : e.from + "–" + e.to}`;
+  $("eraLine").innerHTML = ev
+    ? `<span class="evt">${ev.y}: ${esc(ev.text)}</span> · <b>${esc(e.name)}</b>`
+    : `<b>${esc(e.name)}</b> <span class="yrs">${yrs}</span> · ${esc(e.note)}`;
+  $("eraLine").title = `${e.name} (${yrs}): ${e.note}`;
+}
+const DEC_STEP = ["step", ["get", "y"], DEC_COLORS[0], ...DEC_COLORS.slice(1).flatMap((c, i) => [1900 + i * 10, c])];
 
 const $ = id => document.getElementById(id);
 const fmt = n => n.toLocaleString("en-US");
@@ -215,14 +388,14 @@ const setStatus = (msg, err=false) => { const s=$("status"); s.textContent = msg
 const S = {
   t: null, Y: null, playing: false, speed: 3, fade: 6,
   minY: 1700, maxY: MAX_YEAR,
-  polysByYear: new Map(), ptsByYear: new Map(),
+  ptsByYear: new Map(), areas: [],
   counts: new Map(), cum: new Map(), maxCount: 1, loaded: false
 };
 
 // ---------- Map ----------
 const map = new maplibregl.Map({
   container: "map",
-  style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+  style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
   bounds: [[-73.73, 40.98], [-71.78, 42.05]],
   fitBoundsOptions: { padding: 40 },
   attributionControl: { compact: true }
@@ -232,50 +405,62 @@ map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom
 const EMPTY = { type: "FeatureCollection", features: [] };
 
 map.on("load", () => {
-  const firstSymbol = map.getStyle().layers.find(l => l.type === "symbol")?.id;
+  // Draw points above every basemap fill (including building footprints) but under place labels.
+  const layers = map.getStyle().layers;
+  let lastFill = -1;
+  layers.forEach((l, i) => { if (l.type === "fill" || l.type === "fill-extrusion" || l.type === "line") lastFill = i; });
+  const firstSymbol = layers.slice(lastFill + 1).find(l => l.type === "symbol")?.id;
 
-  map.addSource("parcels", { type: "geojson", data: EMPTY });
-  map.addSource("recent", { type: "geojson", data: EMPTY });
+  map.addSource("pts", { type: "geojson", data: EMPTY, promoteId: "id" });
   map.addSource("recent-pts", { type: "geojson", data: EMPTY });
 
-  map.addLayer({
-    id: "parcels-fill", type: "fill", source: "parcels",
-    filter: ["<=", ["get", "y"], -1],
-    paint: {
-      "fill-color": ["interpolate", ["linear"], ["get", "y"], ...ERA],
-      "fill-opacity": 0.6
-    }
-  }, firstSymbol);
-  map.addLayer({
-    id: "parcels-line", type: "line", source: "parcels", minzoom: 14,
-    filter: ["<=", ["get", "y"], -1],
-    paint: { "line-color": "#9be3c6", "line-opacity": 0.18, "line-width": 0.5 }
-  }, firstSymbol);
-  map.addLayer({
-    id: "glow-fill", type: "fill", source: "recent",
-    paint: { "fill-color": "#fff4cf", "fill-opacity": 0 }
-  }, firstSymbol);
+  // Glow halo sits under the points so a just-built parcel shows its decade color inside an orange flare.
   map.addLayer({
     id: "glow-halo", type: "circle", source: "recent-pts",
     paint: { "circle-color": "#ffb347", "circle-opacity": 0, "circle-radius": 6, "circle-blur": 1, "circle-pitch-alignment": "map" }
   }, firstSymbol);
+  map.addLayer({
+    id: "parcels-pts", type: "circle", source: "pts",
+    paint: {
+      "circle-color": DEC_STEP,
+      // Shown/hidden per parcel via feature-state, which is far cheaper than re-filtering every year
+      "circle-opacity": ["case", ["boolean", ["feature-state", "on"], false], 0.9, 0],
+      "circle-stroke-opacity": ["case", ["boolean", ["feature-state", "on"], false], 1, 0],
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 1.4, 11, 2.4, 14, 4.5, 17, 8],
+      "circle-stroke-color": "#ffffff",
+      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 0, 13, 0.6, 16, 1]
+    }
+  }, firstSymbol);
 
-  map.on("click", "parcels-fill", e => {
-    const p = e.features[0].properties;
-    const area = p.Living_Area ? `${fmt(Math.round(p.Living_Area))} sq ft living area` : "";
-    new maplibregl.Popup({ maxWidth: "260px" }).setLngLat(e.lngLat).setHTML(
-      `<div class="pop-y">${esc(p.y)}</div>
-       <div><b>${esc(p.Location || "No address")}</b></div>
-       <div style="color:var(--muted)">${esc(p.State_Use_Description || "")}${area ? "<br>" + area : ""}</div>`
-    ).addTo(map);
+  map.on("click", "parcels-pts", async e => {
+    const hit = e.features.find(f => f.properties.y <= S.Y);
+    if (!hit) return;
+    const p = hit.properties;
+    const pop = new maplibregl.Popup({ maxWidth: "260px" }).setLngLat(e.lngLat)
+      .setHTML(`<div class="pop-y">${esc(p.y)}</div><div style="color:var(--muted)">Loading details…</div>`).addTo(map);
+    try {
+      const j = await q({ objectIds: p.id, outFields: "Location,Town_Name,State_Use_Description,Living_Area", returnGeometry: "false", f: "json" });
+      const a = (j.features && j.features[0] && j.features[0].attributes) || {};
+      const area = a.Living_Area ? `${fmt(Math.round(a.Living_Area))} sq ft living area` : "";
+      pop.setHTML(
+        `<div class="pop-y">${esc(p.y)}</div>
+         <div><b>${esc(a.Location || "No address")}</b>${a.Town_Name ? ", " + esc(a.Town_Name.replace(/_/g, " ")) : ""}</div>
+         <div style="color:var(--muted)">${esc(a.State_Use_Description || "")}${area ? "<br>" + area : ""}</div>`);
+    } catch (err) {
+      pop.setHTML(`<div class="pop-y">${esc(p.y)}</div><div style="color:var(--muted)">Couldn't load details.</div>`);
+    }
   });
-  map.on("mouseenter", "parcels-fill", () => map.getCanvas().style.cursor = "pointer");
-  map.on("mouseleave", "parcels-fill", () => map.getCanvas().style.cursor = "");
+  map.on("mousemove", "parcels-pts", e => map.getCanvas().style.cursor = e.features.some(f => f.properties.y <= S.Y) ? "pointer" : "");
+  map.on("mouseleave", "parcels-pts", () => map.getCanvas().style.cursor = "");
 
-  const urlTown = new URLSearchParams(location.search).get("town");
-  const start = TOWNS.find(t => t.toLowerCase() === (urlTown || "").toLowerCase()) || DEFAULT_TOWN;
-  $("town").value = start;
-  loadTown(start);
+  const qs = new URLSearchParams(location.search);
+  const lc = s => (s || "").toLowerCase();
+  const areas = [];
+  for (const r of qs.getAll("region")) { const c = COGS.find(x => lc(x) === lc(r)); if (c) areas.push({ type: "cog", name: c }); }
+  for (const t of qs.getAll("town")) { const n = TOWNS.find(x => lc(x) === lc(t)); if (n) areas.push({ type: "town", name: n }); }
+  if (!areas.length) areas.push({ type: "cog", name: DEFAULT_REGION });
+  $("town").value = areaKey(areas[0]);
+  loadAreas(areas);
 });
 
 // ---------- Data ----------
@@ -304,66 +489,86 @@ async function pool(items, n, fn) {
   await Promise.all(workers);
 }
 
-let loadToken = 0;
-async function loadTown(town) {
-  const token = ++loadToken;
-  pause();
-  $("load").disabled = true;
-  try {
-    const where = `UPPER(Town_Name)='${town.toUpperCase().replace(/'/g, "''")}' AND AYB>=${MIN_VALID} AND AYB<=${MAX_YEAR}`;
-    setStatus(`Counting parcels in ${town}…`);
-    const { count } = await q({ where, returnCountOnly: "true", f: "json" });
-    if (token !== loadToken) return;
-    if (!count) { setStatus(`No parcels with a build year found for ${town}.`, true); return; }
+const areaKey = a => `${a.type}:${a.name}`;
+const areaLabel = a => a.type === "cog" ? `${a.name} region` : a.name;
+const sqlStr = s => `'${String(s).replace(/'/g, "''")}'`;
+function areaWhere(a) {
+  if (a.type === "cog") return `COG=${sqlStr(a.name)}`;
+  // Exact match (no UPPER) so the server can use its index
+  const names = [a.name, ...(TOWN_ALIASES[a.name] || [])].map(sqlStr);
+  return `Town_Name IN (${names.join(",")})`;
+}
+function describe(areas) {
+  const l = areas.map(areaLabel);
+  return l.length <= 3 ? l.join(", ") : `${l.slice(0, 2).join(", ")} + ${l.length - 2} more`;
+}
+function renderChips() {
+  const el = $("chips");
+  el.innerHTML = S.areas.length > 1 ? S.areas.map((a, i) =>
+    `<span class="chip">${esc(areaLabel(a))}<button type="button" data-i="${i}" aria-label="Remove ${esc(areaLabel(a))}">×</button></span>`).join("") : "";
+}
+$("chips").addEventListener("click", e => {
+  const b = e.target.closest("button[data-i]"); if (!b) return;
+  const next = S.areas.filter((_, i) => i !== +b.dataset.i);
+  if (next.length) loadAreas(next);
+});
 
-    const offsets = Array.from({ length: Math.ceil(count / PAGE) }, (_, i) => i * PAGE);
-    const feats = [];
-    setStatus(`Loading ${town}: 0 of ${fmt(count)} parcels`);
-    await pool(offsets, CONCURRENCY, async off => {
+let loadToken = 0;
+async function loadAreas(areas) {
+  const token = ++loadToken;
+  const label = describe(areas);
+  pause();
+  $("load").disabled = $("add").disabled = true;
+  try {
+    const where = `(${areas.map(areaWhere).join(" OR ")}) AND AYB>=${MIN_VALID} AND AYB<=${MAX_YEAR}`;
+    setStatus(`Finding parcels in ${label}…`);
+    // Get the matching IDs first (fast), then fetch them in OBJECTID ranges; offset paging is very slow on this service.
+    const ids = ((await q({ where, returnIdsOnly: "true", f: "json" })).objectIds || []).sort((a, b) => a - b);
+    const count = ids.length;
+    if (token !== loadToken) return;
+    if (!count) { setStatus(`No parcels with a build year found for ${label}.`, true); return; }
+
+    const ranges = Array.from({ length: Math.ceil(count / PAGE) }, (_, i) => [ids[i * PAGE], ids[Math.min((i + 1) * PAGE, count) - 1]]);
+    const pts = [];
+    setStatus(`Loading ${label}: 0 of ${fmt(count)} parcels`);
+    await pool(ranges, CONCURRENCY, async ([lo, hi]) => {
+      // Only the parcel centroid and build year come down; details load when a point is clicked.
       const j = await q({
-        where, f: "geojson", outSR: 4326,
-        outFields: "OBJECTID,AYB,Location,State_Use_Description,Living_Area",
-        geometryPrecision: 6, maxAllowableOffset: 0.000008,
-        orderByFields: "OBJECTID", resultOffset: off, resultRecordCount: PAGE
+        where: `OBJECTID>=${lo} AND OBJECTID<=${hi} AND ${where}`, f: "json", outSR: 4326, outFields: "OBJECTID,AYB,State_Use_Description",
+        returnGeometry: "false", returnCentroid: "true"
       });
       if (token !== loadToken) return;
-      for (const f of j.features || []) if (f.geometry) feats.push(f);
-      setStatus(`Loading ${town}: ${fmt(feats.length)} of ${fmt(count)} parcels`);
+      for (const f of j.features || []) {
+        const c = f.centroid; if (!c || !isFinite(c.x) || !isFinite(c.y)) continue;
+        pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [+c.x.toFixed(6), +c.y.toFixed(6)] },
+                   properties: { id: f.attributes.OBJECTID, y: Math.round(f.attributes.AYB), k: classifyUse(f.attributes.State_Use_Description) } });
+      }
+      setStatus(`Loading ${label}: ${fmt(pts.length)} of ${fmt(count)} parcels`);
     });
     if (token !== loadToken) return;
-    ingest(feats);
-    setStatus(`${town}: ${fmt(feats.length)} parcels with a build year. Click any parcel for details.`);
-    play();
+    S.areas = areas;
+    renderChips();
+    ingest(pts);
+    setStatus(`${label}: ${fmt(pts.length)} parcels with a build year. Click any point for details.`);
+    if (S.splashOpen) S.playOnClose = true; else play();
   } catch (e) {
-    if (token === loadToken) setStatus(`Couldn't load ${town}: ${e.message}. Check your connection and try again.`, true);
+    if (token === loadToken) setStatus(`Couldn't load ${label}: ${e.message}. Check your connection and try again.`, true);
   } finally {
-    if (token === loadToken) $("load").disabled = false;
+    if (token === loadToken) $("load").disabled = $("add").disabled = false;
   }
 }
 
-function ringCenter(geom) {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  const polys = geom.type === "MultiPolygon" ? geom.coordinates : [geom.coordinates];
-  for (const poly of polys) for (const [x, y] of poly[0]) {
-    if (x < minX) minX = x; if (x > maxX) maxX = x;
-    if (y < minY) minY = y; if (y > maxY) maxY = y;
-  }
-  return [[(minX + maxX) / 2, (minY + maxY) / 2], [minX, minY, maxX, maxY]];
-}
-
-function ingest(feats) {
-  S.polysByYear = new Map(); S.ptsByYear = new Map(); S.counts = new Map(); S.cum = new Map();
+function ingest(pts) {
+  S.ptsByYear = new Map(); S.counts = new Map(); S.cum = new Map();
   const bb = [Infinity, Infinity, -Infinity, -Infinity];
   const years = [];
-  for (const f of feats) {
-    const y = Math.round(f.properties.AYB);
-    f.properties.y = y;
-    const [c, b] = ringCenter(f.geometry);
-    bb[0] = Math.min(bb[0], b[0]); bb[1] = Math.min(bb[1], b[1]);
-    bb[2] = Math.max(bb[2], b[2]); bb[3] = Math.max(bb[3], b[3]);
-    if (!S.polysByYear.has(y)) { S.polysByYear.set(y, []); S.ptsByYear.set(y, []); }
-    S.polysByYear.get(y).push(f);
-    S.ptsByYear.get(y).push({ type: "Feature", geometry: { type: "Point", coordinates: c }, properties: { y } });
+  for (const f of pts) {
+    const y = f.properties.y;
+    const [x, yy] = f.geometry.coordinates;
+    bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], yy);
+    bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], yy);
+    if (!S.ptsByYear.has(y)) S.ptsByYear.set(y, []);
+    S.ptsByYear.get(y).push(f);
     S.counts.set(y, (S.counts.get(y) || 0) + 1);
     years.push(y);
   }
@@ -377,38 +582,51 @@ function ingest(feats) {
   S.maxCount = 1;
   for (let y = S.minY; y <= S.maxY; y++) S.maxCount = Math.max(S.maxCount, S.counts.get(y) || 0);
   S.firstYear = years[0];
+  // Standing parcels by type at the end of each year
+  const add = new Map();
+  for (const f of pts) {
+    const y = f.properties.y;
+    if (!add.has(y)) add.set(y, new Array(TYPES.length).fill(0));
+    add.get(y)[f.properties.k]++;
+  }
+  S.typeCum = new Map();
+  const runT = new Array(TYPES.length).fill(0);
+  for (let y = years[0]; y <= S.maxY; y++) {
+    const a = add.get(y); if (a) for (let k = 0; k < TYPES.length; k++) runT[k] += a[k];
+    S.typeCum.set(y, runT.slice());
+  }
+  S.typesDirty = true;
 
-  map.getSource("parcels").setData({ type: "FeatureCollection", features: feats });
+  map.getSource("pts").setData({ type: "FeatureCollection", features: pts });
+  map.removeFeatureState({ source: "pts" });
+  S.shownY = S.firstYear - 1;
   if (isFinite(bb[0])) {
     const mobile = innerWidth <= 640;
     map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], {
-      padding: mobile ? { top: 140, bottom: 230, left: 20, right: 20 } : { top: 40, bottom: 170, left: 380, right: 40 },
+      padding: mobile ? { top: 140, bottom: 230, left: 20, right: 20 } : { top: 40, bottom: 170, left: 380, right: $("types").classList.contains("open") ? 340 : 40 },
       duration: 1200
     });
   }
   const sl = $("slider");
   sl.min = S.minY; sl.max = S.maxY;
-  S.loaded = true; S.Y = null;
+  S.loaded = true; S.Y = null; S.glowT = null;
   setT(S.minY);
 }
 
 // ---------- Time ----------
 function rebuildRecent(Y) {
-  const polys = [], pts = [];
+  const pts = [];
   for (let y = Y - S.fade + 1; y <= Y; y++) {
-    const a = S.polysByYear.get(y); if (a) polys.push(...a);
     const b = S.ptsByYear.get(y); if (b) pts.push(...b);
   }
-  map.getSource("recent").setData({ type: "FeatureCollection", features: polys });
   map.getSource("recent-pts").setData({ type: "FeatureCollection", features: pts });
+  S.glowOn = pts.length > 0;
 }
 
 function paintGlow(t) {
   const F = S.fade;
   const age = ["-", t, ["get", "y"]];
   const color = ["interpolate", ["linear"], age, 0, "#fff4cf", 0.6, "#ffd166", F * 0.5, "#ff7a45", F, "#c2410c"];
-  map.setPaintProperty("glow-fill", "fill-color", color);
-  map.setPaintProperty("glow-fill", "fill-opacity", ["interpolate", ["linear"], age, 0, 0.95, F, 0]);
   const k = ["interpolate", ["linear"], age, 0, 1.7, 1, 1, F, 0.35];
   map.setPaintProperty("glow-halo", "circle-color", color);
   map.setPaintProperty("glow-halo", "circle-opacity", ["interpolate", ["linear"], age, 0, 0.85, F, 0]);
@@ -423,17 +641,47 @@ function setT(t) {
   const Y = Math.floor(t);
   if (Y !== S.Y) {
     S.Y = Y;
-    const f = ["<=", ["get", "y"], Y];
-    map.setFilter("parcels-fill", f);
-    map.setFilter("parcels-line", f);
-    rebuildRecent(Y);
+    showUpTo(Y);
+    if (S.scrubbing) clearGlow(); else rebuildRecent(Y);
     $("year").textContent = Y;
     $("nYear").textContent = fmt(S.counts.get(Y) || 0);
     $("nCum").textContent = fmt(S.cum.get(Y) || 0);
+    updateEraLine(Y);
     $("slider").value = Y;
   }
-  paintGlow(t);
+  // Glow paint is data-driven, so each update re-processes the glow points; cap it to quarter-year steps.
+  const gq = Math.floor(t * 4) / 4;
+  if (!S.scrubbing && gq !== S.glowT) { S.glowT = gq; paintGlow(gq); }
   drawHist();
+  if (Y !== S.typesY) drawTypes();
+}
+
+// Turn on/off only the parcels whose build year falls between the old and new year.
+function showUpTo(Y) {
+  const on = Y > S.shownY;
+  const [a, b] = on ? [S.shownY + 1, Y] : [Y + 1, S.shownY];
+  for (let y = a; y <= b; y++) {
+    const arr = S.ptsByYear.get(y); if (!arr) continue;
+    for (const f of arr) map.setFeatureState({ source: "pts", id: f.properties.id }, { on });
+  }
+  S.shownY = Y;
+}
+function clearGlow() {
+  if (!S.glowOn) return;
+  S.glowOn = false;
+  map.getSource("recent-pts").setData(EMPTY);
+}
+
+// Dragging the slider/histogram: coalesce to one update per frame and skip the glow until the drag settles.
+let scrubRaf = 0, scrubTimer = 0, scrubTarget = 0;
+function scrubTo(t) {
+  if (!S.loaded) return;
+  pause();
+  S.scrubbing = true;
+  scrubTarget = t;
+  if (!scrubRaf) scrubRaf = requestAnimationFrame(() => { scrubRaf = 0; setT(scrubTarget); });
+  clearTimeout(scrubTimer);
+  scrubTimer = setTimeout(() => { S.scrubbing = false; S.Y = null; S.glowT = null; setT(S.t); }, 200);
 }
 
 let last = 0, raf = 0;
@@ -467,12 +715,33 @@ function drawHist() {
   hctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   hctx.clearRect(0, 0, w, h);
   if (!S.loaded) return;
-  const n = S.maxY - S.minY + 1, axis = 14, top = 4, ph = h - axis - top;
+  const n = S.maxY - S.minY + 1, axis = 14, top = 14, ph = h - axis - top;
   const bw = w / n;
   const x = y => (y - S.minY) * bw;
 
+  // Era bands (alternating shade) with labels along the top edge
+  hctx.font = "600 9.5px 'Golos Text', system-ui, sans-serif"; hctx.textBaseline = "top";
+  ERAS.forEach((e, i) => {
+    const a = Math.max(e.from, S.minY), b = Math.min(e.to, S.maxY);
+    if (b < a) return;
+    const x0 = x(a), x1 = x(b + 1);
+    const cur = S.Y != null && S.Y >= e.from && S.Y <= e.to;
+    hctx.fillStyle = cur ? "rgba(118,176,83,.16)" : i % 2 ? "rgba(255,255,255,.045)" : "rgba(255,255,255,0)";
+    hctx.fillRect(x0, 0, x1 - x0, top + ph);
+    if (i && e.from > S.minY) { hctx.fillStyle = "rgba(255,255,255,.22)"; hctx.fillRect(Math.round(x0), 0, 1, top + ph); }
+    const label = hctx.measureText(e.name).width + 8 <= x1 - x0 ? e.name : hctx.measureText(e.short).width + 8 <= x1 - x0 ? e.short : "";
+    if (label) { hctx.fillStyle = cur ? "#cfe6bf" : "#8e98b0"; hctx.fillText(label, x0 + 4, 2); }
+  });
+  // Key events: small markers on the top edge of the plot
+  hctx.fillStyle = "#ffb347";
+  for (const ev of EVENTS) {
+    if (ev.y < S.minY || ev.y > S.maxY) continue;
+    const ex = x(ev.y) + bw / 2;
+    hctx.beginPath(); hctx.moveTo(ex - 3.5, top - 1); hctx.lineTo(ex + 3.5, top - 1); hctx.lineTo(ex, top + 4); hctx.closePath(); hctx.fill();
+  }
+
   hctx.font = "10px 'IBM Plex Mono', monospace";
-  hctx.fillStyle = "#8e98b0"; hctx.strokeStyle = "#26304a"; hctx.lineWidth = 1;
+  hctx.fillStyle = "#8e98b0"; hctx.strokeStyle = "rgba(255,255,255,.07)"; hctx.lineWidth = 1;
   hctx.textBaseline = "bottom";
   const step = n > 250 ? 50 : n > 120 ? 25 : 10;
   for (let y = Math.ceil(S.minY / step) * step; y <= S.maxY; y += step) {
@@ -508,8 +777,13 @@ function histToYear(clientX) {
   return S.minY + f * (S.maxY - S.minY + 1);
 }
 let dragging = false;
-hist.addEventListener("pointerdown", e => { if (!S.loaded) return; dragging = true; hist.setPointerCapture(e.pointerId); pause(); setT(histToYear(e.clientX)); });
-hist.addEventListener("pointermove", e => { if (dragging) setT(histToYear(e.clientX)); });
+hist.addEventListener("pointerdown", e => { if (!S.loaded) return; dragging = true; hist.setPointerCapture(e.pointerId); scrubTo(histToYear(e.clientX)); });
+hist.addEventListener("pointermove", e => {
+  if (dragging) { scrubTo(histToYear(e.clientX)); return; }
+  if (!S.loaded) return;
+  const y = Math.floor(histToYear(e.clientX)), ev = EVENTS.find(v => v.y === y), er = eraOf(y);
+  hist.title = `${y} · ${er.name}${ev ? "\n" + ev.y + ": " + ev.text : ""}`;
+});
 hist.addEventListener("pointerup", () => dragging = false);
 hist.addEventListener("keydown", e => {
   if (e.key === "ArrowLeft") { pause(); setT(Math.floor(S.t) - 1); e.preventDefault(); }
@@ -518,19 +792,144 @@ hist.addEventListener("keydown", e => {
 });
 addEventListener("resize", drawHist);
 
+// ---------- Legend ----------
+$("decLegend").innerHTML = DEC_COLORS.map((c, i) => `<div><span style="background:${c}"></span>${DEC_LABELS[i]}</div>`).join("");
+
+// ---------- Home types chart ----------
+const tc = $("typesChart"), tctx = tc.getContext("2d");
+const typesBase = document.createElement("canvas");
+S.typesMode = "count"; S.typesHover = null; S.typesY = null;
+
+function typesGeom() {
+  const dpr = devicePixelRatio || 1, w = tc.clientWidth, h = tc.clientHeight;
+  return { dpr, w, h, axis: 14, top: 4, ph: h - 18 };
+}
+// Stacked areas are drawn once per load/mode/resize into an offscreen canvas; each frame only adds the year line.
+function buildTypesBase() {
+  const g = typesGeom(); if (!g.w || !S.loaded) return;
+  typesBase.width = g.w * g.dpr; typesBase.height = g.h * g.dpr;
+  const c = typesBase.getContext("2d");
+  c.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
+  const n = S.maxY - S.minY + 1, x = y => (y - S.minY + 0.5) / n * g.w;
+  const share = S.typesMode === "share";
+  const tot = y => S.typeCum.get(y).reduce((a, b) => a + b, 0);
+  let maxV = 1; if (!share) for (let y = S.minY; y <= S.maxY; y++) maxV = Math.max(maxV, tot(y));
+  const yPx = v => g.top + g.ph - (share ? v : v / maxV) * g.ph;
+
+  // gridlines + year labels, recessive
+  c.font = "10px 'IBM Plex Mono', monospace"; c.fillStyle = "#8e98b0"; c.strokeStyle = "rgba(255,255,255,.08)"; c.lineWidth = 1;
+  c.textBaseline = "bottom";
+  const step = n > 250 ? 100 : n > 120 ? 50 : 25;
+  for (let y = Math.ceil(S.minY / step) * step; y <= S.maxY; y += step) {
+    const xx = Math.round(x(y)) + 0.5;
+    c.beginPath(); c.moveTo(xx, g.top); c.lineTo(xx, g.top + g.ph); c.stroke();
+    const tw = c.measureText(y).width;
+    c.fillText(y, Math.min(Math.max(xx - tw / 2, 0), g.w - tw), g.h);
+  }
+  // stacked areas, bottom (single family) to top; 1px surface gap between bands
+  const base = new Map(); for (let y = S.minY; y <= S.maxY; y++) base.set(y, 0);
+  TYPES.forEach((t, k) => {
+    c.beginPath();
+    for (let y = S.minY; y <= S.maxY; y++) {
+      const T = tot(y) || 1, v = S.typeCum.get(y)[k] / (share ? T : 1);
+      const top = base.get(y) + v;
+      y === S.minY ? c.moveTo(x(y), yPx(top)) : c.lineTo(x(y), yPx(top));
+    }
+    for (let y = S.maxY; y >= S.minY; y--) c.lineTo(x(y), yPx(base.get(y)));
+    c.closePath(); c.fillStyle = t.color; c.fill();
+    c.strokeStyle = "rgba(7,38,92,.9)"; c.lineWidth = 1; c.stroke();
+    for (let y = S.minY; y <= S.maxY; y++) { const T = tot(y) || 1; base.set(y, base.get(y) + S.typeCum.get(y)[k] / (share ? T : 1)); }
+  });
+  S.typesDirty = false;
+}
+function drawTypes() {
+  if (!S.loaded || !$("types").classList.contains("open")) return;
+  const g = typesGeom(); if (!g.w) return;
+  if (tc.width !== g.w * g.dpr || tc.height !== g.h * g.dpr) { tc.width = g.w * g.dpr; tc.height = g.h * g.dpr; S.typesDirty = true; }
+  if (S.typesDirty) buildTypesBase();
+  tctx.setTransform(1, 0, 0, 1, 0, 0);
+  tctx.clearRect(0, 0, tc.width, tc.height);
+  tctx.drawImage(typesBase, 0, 0);
+  tctx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
+  const n = S.maxY - S.minY + 1, x = y => (y - S.minY + 0.5) / n * g.w;
+  const Y = Math.min(Math.max(S.typesHover ?? S.Y ?? S.minY, S.minY), S.maxY);
+  // dim the future, mark the year
+  if (S.typesHover == null && S.Y < S.maxY) { tctx.fillStyle = "rgba(7,38,92,.55)"; tctx.fillRect(x(S.Y) , 0, g.w - x(S.Y), g.top + g.ph); }
+  tctx.strokeStyle = S.typesHover != null ? "#ffffff" : "#fff4cf"; tctx.lineWidth = 1.5;
+  tctx.beginPath(); tctx.moveTo(x(Y), g.top); tctx.lineTo(x(Y), g.top + g.ph); tctx.stroke();
+  S.typesY = S.typesHover == null ? S.Y : null;
+
+  const v = S.typeCum.get(Y) || TYPES.map(() => 0), T = v.reduce((a, b) => a + b, 0) || 1;
+  $("typesSub").textContent = `Parcels standing in ${Y}${S.typesHover != null ? " (hover)" : ""}`;
+  $("typesLegend").innerHTML = TYPES.map((t, k) => ({ t, k })).reverse().map(({ t, k }) =>
+    `<div class="r${v[k] ? "" : " zero"}"><i style="background:${t.color}"></i><span>${t.label}</span><b>${S.typesMode === "share" ? (v[k] / T * 100).toFixed(1) + "%" : fmt(v[k])}</b></div>`).join("");
+}
+function typesYear(clientX) {
+  const r = tc.getBoundingClientRect(), n = S.maxY - S.minY + 1;
+  return Math.min(Math.max(S.minY + Math.floor((clientX - r.left) / r.width * n), S.minY), S.maxY);
+}
+tc.addEventListener("pointermove", e => { if (!S.loaded) return; S.typesHover = typesYear(e.clientX); drawTypes(); });
+tc.addEventListener("pointerleave", () => { S.typesHover = null; drawTypes(); });
+tc.addEventListener("click", e => { if (!S.loaded) return; pause(); S.typesHover = null; setT(typesYear(e.clientX)); });
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+  S.typesMode = b.dataset.m; S.typesDirty = true;
+  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  drawTypes();
+}));
+const typesBtn = $("typesBtn");
+function setTypesOpen(o) { $("types").classList.toggle("open", o); typesBtn.setAttribute("aria-expanded", o); if (o) { S.typesDirty = true; drawTypes(); } }
+typesBtn.addEventListener("click", () => setTypesOpen(!$("types").classList.contains("open")));
+if (innerWidth <= 640) setTypesOpen(false);
+addEventListener("resize", () => { S.typesDirty = true; drawTypes(); });
+
 // ---------- Controls ----------
 const townSel = $("town");
-for (const t of TOWNS) townSel.add(new Option(t, t));
-$("load").addEventListener("click", () => loadTown(townSel.value));
-townSel.addEventListener("change", () => loadTown(townSel.value));
+const grp = (label, items) => { const g = document.createElement("optgroup"); g.label = label; for (const a of items) g.append(new Option(areaLabel(a), areaKey(a))); townSel.append(g); };
+grp("Planning regions", COGS.map(name => ({ type: "cog", name })));
+grp("Towns", TOWNS.map(name => ({ type: "town", name })));
+const selectedArea = () => { const [type, ...rest] = townSel.value.split(":"); return { type, name: rest.join(":") }; };
+$("load").addEventListener("click", () => loadAreas([selectedArea()]));
+$("add").addEventListener("click", () => {
+  const a = selectedArea();
+  if (S.areas.some(x => areaKey(x) === areaKey(a))) return;
+  loadAreas([...S.areas, a]);
+});
 $("play").addEventListener("click", () => S.playing ? pause() : play());
-$("slider").addEventListener("input", e => { pause(); setT(+e.target.value); });
+$("slider").addEventListener("input", e => scrubTo(+e.target.value));
 $("speed").addEventListener("change", e => S.speed = +e.target.value);
 $("fade").addEventListener("change", e => {
   S.fade = +e.target.value;
   $("fadeLbl").textContent = `+${S.fade} yrs`;
-  if (S.loaded) { S.Y = null; setT(S.t); }
+  if (S.loaded) { S.Y = null; S.glowT = null; setT(S.t); }
 });
+// ---------- Splash ----------
+const splash = $("splash"), SPLASH_KEY = "ctBuiltOverTime.hideSplash";
+function openSplash() {
+  S.splashOpen = true;
+  try { $("splashHide").checked = localStorage.getItem(SPLASH_KEY) === "1"; } catch (e) {}
+  if (splash.showModal) splash.showModal(); else splash.setAttribute("open", "");
+  $("splashGo").focus();
+}
+function closeSplash() {
+  try { $("splashHide").checked ? localStorage.setItem(SPLASH_KEY, "1") : localStorage.removeItem(SPLASH_KEY); } catch (e) {}
+  if (splash.open) splash.close();
+}
+splash.addEventListener("close", () => {
+  S.splashOpen = false;
+  if (S.playOnClose && S.loaded) { S.playOnClose = false; play(); }
+});
+$("splashGo").addEventListener("click", closeSplash);
+splash.addEventListener("click", e => { if (e.target === splash) closeSplash(); });
+$("aboutBtn").addEventListener("click", () => { pause(); openSplash(); });
+let hideSplash = false;
+try { hideSplash = localStorage.getItem(SPLASH_KEY) === "1"; } catch (e) {}
+if (!hideSplash) openSplash();
+// Show when the state last updated the layer
+fetch(SVC + "?f=json").then(r => r.json()).then(j => {
+  const t = j.editingInfo && (j.editingInfo.dataLastEditDate || j.editingInfo.lastEditDate);
+  if (t) $("dataDate").textContent = `The state last updated this layer on ${new Date(t).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}.`;
+}).catch(() => {});
+
 if (matchMedia("(prefers-reduced-motion: reduce)").matches) $("speed").value = "1", S.speed = 1;
 </script>
 
