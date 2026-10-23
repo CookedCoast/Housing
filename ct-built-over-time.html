@@ -245,7 +245,7 @@ const EMPTY = { type: "FeatureCollection", features: [] };
 map.on("load", () => {
   const firstSymbol = map.getStyle().layers.find(l => l.type === "symbol")?.id;
 
-  map.addSource("pts", { type: "geojson", data: EMPTY });
+  map.addSource("pts", { type: "geojson", data: EMPTY, promoteId: "id" });
   map.addSource("recent-pts", { type: "geojson", data: EMPTY });
 
   // Glow halo sits under the points so a just-built parcel shows its decade color inside an orange flare.
@@ -255,10 +255,11 @@ map.on("load", () => {
   }, firstSymbol);
   map.addLayer({
     id: "parcels-pts", type: "circle", source: "pts",
-    filter: ["<=", ["get", "y"], -1],
     paint: {
       "circle-color": DEC_STEP,
-      "circle-opacity": 0.9,
+      // Shown/hidden per parcel via feature-state, which is far cheaper than re-filtering every year
+      "circle-opacity": ["case", ["boolean", ["feature-state", "on"], false], 0.9, 0],
+      "circle-stroke-opacity": ["case", ["boolean", ["feature-state", "on"], false], 1, 0],
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 1.4, 11, 2.4, 14, 4.5, 17, 8],
       "circle-stroke-color": "#ffffff",
       "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 0, 13, 0.6, 16, 1]
@@ -266,7 +267,9 @@ map.on("load", () => {
   }, firstSymbol);
 
   map.on("click", "parcels-pts", async e => {
-    const p = e.features[0].properties;
+    const hit = e.features.find(f => f.properties.y <= S.Y);
+    if (!hit) return;
+    const p = hit.properties;
     const pop = new maplibregl.Popup({ maxWidth: "260px" }).setLngLat(e.lngLat)
       .setHTML(`<div class="pop-y">${esc(p.y)}</div><div style="color:var(--muted)">Loading details…</div>`).addTo(map);
     try {
@@ -281,7 +284,7 @@ map.on("load", () => {
       pop.setHTML(`<div class="pop-y">${esc(p.y)}</div><div style="color:var(--muted)">Couldn't load details.</div>`);
     }
   });
-  map.on("mouseenter", "parcels-pts", () => map.getCanvas().style.cursor = "pointer");
+  map.on("mousemove", "parcels-pts", e => map.getCanvas().style.cursor = e.features.some(f => f.properties.y <= S.Y) ? "pointer" : "");
   map.on("mouseleave", "parcels-pts", () => map.getCanvas().style.cursor = "");
 
   const qs = new URLSearchParams(location.search);
@@ -413,6 +416,8 @@ function ingest(pts) {
   S.firstYear = years[0];
 
   map.getSource("pts").setData({ type: "FeatureCollection", features: pts });
+  map.removeFeatureState({ source: "pts" });
+  S.shownY = S.firstYear - 1;
   if (isFinite(bb[0])) {
     const mobile = innerWidth <= 640;
     map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], {
@@ -422,7 +427,7 @@ function ingest(pts) {
   }
   const sl = $("slider");
   sl.min = S.minY; sl.max = S.maxY;
-  S.loaded = true; S.Y = null;
+  S.loaded = true; S.Y = null; S.glowT = null;
   setT(S.minY);
 }
 
@@ -433,6 +438,7 @@ function rebuildRecent(Y) {
     const b = S.ptsByYear.get(y); if (b) pts.push(...b);
   }
   map.getSource("recent-pts").setData({ type: "FeatureCollection", features: pts });
+  S.glowOn = pts.length > 0;
 }
 
 function paintGlow(t) {
@@ -453,16 +459,45 @@ function setT(t) {
   const Y = Math.floor(t);
   if (Y !== S.Y) {
     S.Y = Y;
-    const f = ["<=", ["get", "y"], Y];
-    map.setFilter("parcels-pts", f);
-    rebuildRecent(Y);
+    showUpTo(Y);
+    if (S.scrubbing) clearGlow(); else rebuildRecent(Y);
     $("year").textContent = Y;
     $("nYear").textContent = fmt(S.counts.get(Y) || 0);
     $("nCum").textContent = fmt(S.cum.get(Y) || 0);
     $("slider").value = Y;
   }
-  paintGlow(t);
+  // Glow paint is data-driven, so each update re-processes the glow points; cap it to quarter-year steps.
+  const gq = Math.floor(t * 4) / 4;
+  if (!S.scrubbing && gq !== S.glowT) { S.glowT = gq; paintGlow(gq); }
   drawHist();
+}
+
+// Turn on/off only the parcels whose build year falls between the old and new year.
+function showUpTo(Y) {
+  const on = Y > S.shownY;
+  const [a, b] = on ? [S.shownY + 1, Y] : [Y + 1, S.shownY];
+  for (let y = a; y <= b; y++) {
+    const arr = S.ptsByYear.get(y); if (!arr) continue;
+    for (const f of arr) map.setFeatureState({ source: "pts", id: f.properties.id }, { on });
+  }
+  S.shownY = Y;
+}
+function clearGlow() {
+  if (!S.glowOn) return;
+  S.glowOn = false;
+  map.getSource("recent-pts").setData(EMPTY);
+}
+
+// Dragging the slider/histogram: coalesce to one update per frame and skip the glow until the drag settles.
+let scrubRaf = 0, scrubTimer = 0, scrubTarget = 0;
+function scrubTo(t) {
+  if (!S.loaded) return;
+  pause();
+  S.scrubbing = true;
+  scrubTarget = t;
+  if (!scrubRaf) scrubRaf = requestAnimationFrame(() => { scrubRaf = 0; setT(scrubTarget); });
+  clearTimeout(scrubTimer);
+  scrubTimer = setTimeout(() => { S.scrubbing = false; S.Y = null; S.glowT = null; setT(S.t); }, 200);
 }
 
 let last = 0, raf = 0;
@@ -537,8 +572,8 @@ function histToYear(clientX) {
   return S.minY + f * (S.maxY - S.minY + 1);
 }
 let dragging = false;
-hist.addEventListener("pointerdown", e => { if (!S.loaded) return; dragging = true; hist.setPointerCapture(e.pointerId); pause(); setT(histToYear(e.clientX)); });
-hist.addEventListener("pointermove", e => { if (dragging) setT(histToYear(e.clientX)); });
+hist.addEventListener("pointerdown", e => { if (!S.loaded) return; dragging = true; hist.setPointerCapture(e.pointerId); scrubTo(histToYear(e.clientX)); });
+hist.addEventListener("pointermove", e => { if (dragging) scrubTo(histToYear(e.clientX)); });
 hist.addEventListener("pointerup", () => dragging = false);
 hist.addEventListener("keydown", e => {
   if (e.key === "ArrowLeft") { pause(); setT(Math.floor(S.t) - 1); e.preventDefault(); }
@@ -563,12 +598,12 @@ $("add").addEventListener("click", () => {
   loadAreas([...S.areas, a]);
 });
 $("play").addEventListener("click", () => S.playing ? pause() : play());
-$("slider").addEventListener("input", e => { pause(); setT(+e.target.value); });
+$("slider").addEventListener("input", e => scrubTo(+e.target.value));
 $("speed").addEventListener("change", e => S.speed = +e.target.value);
 $("fade").addEventListener("change", e => {
   S.fade = +e.target.value;
   $("fadeLbl").textContent = `+${S.fade} yrs`;
-  if (S.loaded) { S.Y = null; setT(S.t); }
+  if (S.loaded) { S.Y = null; S.glowT = null; setT(S.t); }
 });
 if (matchMedia("(prefers-reduced-motion: reduce)").matches) $("speed").value = "1", S.speed = 1;
 </script>
