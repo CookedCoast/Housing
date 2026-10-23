@@ -86,6 +86,27 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
 .maplibregl-popup-close-button{color:var(--muted)}
 .pop-y{font:800 26px/1 var(--f-display);color:var(--ember)}
 .maplibregl-ctrl-bottom-right{bottom:150px}
+.types{
+  position:fixed;top:calc(16px + env(safe-area-inset-top,0px));right:calc(16px + env(safe-area-inset-right,0px));z-index:2;
+  width:300px;background:var(--panel);backdrop-filter:blur(8px);border:1px solid var(--rule);border-radius:10px;
+  padding:12px 14px;display:none;gap:8px
+}
+.types.open{display:grid}
+.types-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.types-title{font:700 14px/1.2 var(--f-body)}
+.types-sub{font:12px/1.3 var(--f-mono);color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:4px 8px;font-size:12px;background:transparent;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--brand-blue);color:#fff}
+#typesChart{width:100%;height:120px;display:block;cursor:crosshair}
+.types-legend{display:grid;gap:3px;font-size:12px}
+.types-legend .r{display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:center}
+.types-legend i{width:10px;height:10px;border-radius:2px;display:block}
+.types-legend b{font:500 12px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--text)}
+.types-legend .r.zero{color:var(--muted)}
+.types-note{font-size:11px;line-height:1.35;color:var(--muted);margin:0}
+#typesBtn[aria-expanded="true"]{background:var(--brand-blue);border-color:var(--brand-blue);color:#fff}
+@media (max-width:1100px){ .types{width:260px} }
 
 @media (max-width:640px){
   .card{padding:12px;gap:10px}
@@ -96,6 +117,10 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
   #year{font-size:48px}
   #hist{height:64px}
   .maplibregl-ctrl-bottom-right{bottom:220px}
+  .types{top:auto;bottom:calc(196px + env(safe-area-inset-bottom,0px));left:8px;right:8px;width:auto;padding:10px 12px;gap:6px}
+  #typesChart{height:84px}
+  .types-note{display:none}
+  .types-legend{grid-template-columns:1fr 1fr;column-gap:12px}
 }
 
 /* SECOG branding (colors from secogct.gov) */
@@ -169,6 +194,22 @@ h1{color:#fff}
   <p class="note">AYB only describes buildings standing today, so demolished structures never appear and teardowns show up as new. Assessors often round older build years, which causes spikes at 1900, 1920, 1950.</p>
 </section>
 
+<section class="types open" id="types" aria-label="Home types over time">
+  <div class="types-head">
+    <div>
+      <div class="types-title">Home types</div>
+      <div class="types-sub" id="typesSub">Parcels standing</div>
+    </div>
+    <div class="seg" role="group" aria-label="Chart shows">
+      <button type="button" data-m="count" aria-pressed="true">Count</button>
+      <button type="button" data-m="share" aria-pressed="false">Share</button>
+    </div>
+  </div>
+  <canvas id="typesChart" tabindex="0" aria-label="Stacked area chart of parcels standing by home type, by year. Hover to read a year."></canvas>
+  <div class="types-legend" id="typesLegend"></div>
+  <p class="types-note">By the assessor's land-use description. Each parcel counts once, so a condo unit counts as one but an apartment building also counts as one.</p>
+</section>
+
 <section class="dock">
   <div class="readout">
     <div id="year">—</div>
@@ -187,6 +228,7 @@ h1{color:#fff}
           <option value="12">12 yr/s</option>
         </select>
       </label>
+      <button type="button" id="typesBtn" aria-controls="types" aria-expanded="true">Home types</button>
       <label>Glow lasts
         <select id="fade">
           <option value="3">3 yrs</option>
@@ -216,6 +258,29 @@ const DEC_COLORS = ["#0d0887","#2f0596","#4903a0","#6300a7","#7a02a8","#8f0da4",
 const DEC_LABELS = ["<1900","1900s","1910s","1920s","1930s","1940s","1950s","1960s","1970s","1980s","1990s","2000s","2010s","2020s"];
 const decIdx = y => y < 1900 ? 0 : Math.min(DEC_COLORS.length - 1, Math.floor((y - 1900) / 10) + 1);
 const eraColor = y => DEC_COLORS[decIdx(y)];
+// Home types, classified from the free-text State_Use_Description (it varies by town).
+// Order = stack order (bottom to top); colors validated as a set on the panel's navy surface.
+const TYPES = [
+  { key: "sf",    label: "Single family",      color: "#3987e5" },
+  { key: "small", label: "2–4 family",         color: "#d95926" },
+  { key: "condo", label: "Condo / townhouse",  color: "#199e70" },
+  { key: "multi", label: "Apartments / multi-dwelling",color: "#c98500" },
+  { key: "mobile",label: "Mobile home",        color: "#d55181" },
+  { key: "other", label: "Non-residential / other", color: "#7f8aa6" }
+];
+function classifyUse(desc) {
+  const s = String(desc || "").toLowerCase();
+  if (/(comm|com'l|office|indus|ind|retail|bus|prof)[a-z.']* *condo/.test(s)) return 5;
+  if (/condo|townh|town house|\bpud\b|planned (dev|com)|cluster|co-?op/.test(s)) return 2;
+  if (/mobile|manufact|\bmh\b|trailer/.test(s)) return 4;
+  if (/acc(essory|\.)?\s*apt|w\/\s*apt|in-?law/.test(s)) return 0;
+  if (/\bapts?\s*-?\s*(4|four)\b|\b4[- ]?unit/.test(s)) return 1;
+  if (/apart|\bapts?\d*\b|multi|5\+|five|six|seven|eight|\b([5-9]|1\d)[- ]?(fam|unit)|\d{2,} ?units?/.test(s)) return 3;
+  if (/two|three|four|\b[234][- ]?fam|duplex|\b[234] ?units?\b/.test(s)) return 1;
+  if (/comm|indus|exempt|exmpt|retail|office|off bldg|store|shop|church|mixed|mix use|vac|land|garage|motel|hotel|auto|bank|rest|school|util|farm|use assess/.test(s)) return 5;
+  if (/single|one[- ]?fam|\b1[- ]?fam|sfr|\bsf|sfam|res(id)?|dwel|water|wtrft|ocean|ocn|lake|m(dl)?[- ]?0?1\b/.test(s)) return 0;
+  return 5;
+}
 const DEC_STEP = ["step", ["get", "y"], DEC_COLORS[0], ...DEC_COLORS.slice(1).flatMap((c, i) => [1900 + i * 10, c])];
 
 const $ = id => document.getElementById(id);
@@ -243,7 +308,11 @@ map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom
 const EMPTY = { type: "FeatureCollection", features: [] };
 
 map.on("load", () => {
-  const firstSymbol = map.getStyle().layers.find(l => l.type === "symbol")?.id;
+  // Draw points above every basemap fill (including building footprints) but under place labels.
+  const layers = map.getStyle().layers;
+  let lastFill = -1;
+  layers.forEach((l, i) => { if (l.type === "fill" || l.type === "fill-extrusion" || l.type === "line") lastFill = i; });
+  const firstSymbol = layers.slice(lastFill + 1).find(l => l.type === "symbol")?.id;
 
   map.addSource("pts", { type: "geojson", data: EMPTY, promoteId: "id" });
   map.addSource("recent-pts", { type: "geojson", data: EMPTY });
@@ -368,14 +437,14 @@ async function loadAreas(areas) {
     await pool(ranges, CONCURRENCY, async ([lo, hi]) => {
       // Only the parcel centroid and build year come down; details load when a point is clicked.
       const j = await q({
-        where: `OBJECTID>=${lo} AND OBJECTID<=${hi} AND ${where}`, f: "json", outSR: 4326, outFields: "OBJECTID,AYB",
+        where: `OBJECTID>=${lo} AND OBJECTID<=${hi} AND ${where}`, f: "json", outSR: 4326, outFields: "OBJECTID,AYB,State_Use_Description",
         returnGeometry: "false", returnCentroid: "true"
       });
       if (token !== loadToken) return;
       for (const f of j.features || []) {
         const c = f.centroid; if (!c || !isFinite(c.x) || !isFinite(c.y)) continue;
         pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [+c.x.toFixed(6), +c.y.toFixed(6)] },
-                   properties: { id: f.attributes.OBJECTID, y: Math.round(f.attributes.AYB) } });
+                   properties: { id: f.attributes.OBJECTID, y: Math.round(f.attributes.AYB), k: classifyUse(f.attributes.State_Use_Description) } });
       }
       setStatus(`Loading ${label}: ${fmt(pts.length)} of ${fmt(count)} parcels`);
     });
@@ -416,6 +485,20 @@ function ingest(pts) {
   S.maxCount = 1;
   for (let y = S.minY; y <= S.maxY; y++) S.maxCount = Math.max(S.maxCount, S.counts.get(y) || 0);
   S.firstYear = years[0];
+  // Standing parcels by type at the end of each year
+  const add = new Map();
+  for (const f of pts) {
+    const y = f.properties.y;
+    if (!add.has(y)) add.set(y, new Array(TYPES.length).fill(0));
+    add.get(y)[f.properties.k]++;
+  }
+  S.typeCum = new Map();
+  const runT = new Array(TYPES.length).fill(0);
+  for (let y = years[0]; y <= S.maxY; y++) {
+    const a = add.get(y); if (a) for (let k = 0; k < TYPES.length; k++) runT[k] += a[k];
+    S.typeCum.set(y, runT.slice());
+  }
+  S.typesDirty = true;
 
   map.getSource("pts").setData({ type: "FeatureCollection", features: pts });
   map.removeFeatureState({ source: "pts" });
@@ -423,7 +506,7 @@ function ingest(pts) {
   if (isFinite(bb[0])) {
     const mobile = innerWidth <= 640;
     map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], {
-      padding: mobile ? { top: 140, bottom: 230, left: 20, right: 20 } : { top: 40, bottom: 170, left: 380, right: 40 },
+      padding: mobile ? { top: 140, bottom: 230, left: 20, right: 20 } : { top: 40, bottom: 170, left: 380, right: $("types").classList.contains("open") ? 340 : 40 },
       duration: 1200
     });
   }
@@ -472,6 +555,7 @@ function setT(t) {
   const gq = Math.floor(t * 4) / 4;
   if (!S.scrubbing && gq !== S.glowT) { S.glowT = gq; paintGlow(gq); }
   drawHist();
+  if (Y !== S.typesY) drawTypes();
 }
 
 // Turn on/off only the parcels whose build year falls between the old and new year.
@@ -586,6 +670,93 @@ addEventListener("resize", drawHist);
 
 // ---------- Legend ----------
 $("decLegend").innerHTML = DEC_COLORS.map((c, i) => `<div><span style="background:${c}"></span>${DEC_LABELS[i]}</div>`).join("");
+
+// ---------- Home types chart ----------
+const tc = $("typesChart"), tctx = tc.getContext("2d");
+const typesBase = document.createElement("canvas");
+S.typesMode = "count"; S.typesHover = null; S.typesY = null;
+
+function typesGeom() {
+  const dpr = devicePixelRatio || 1, w = tc.clientWidth, h = tc.clientHeight;
+  return { dpr, w, h, axis: 14, top: 4, ph: h - 18 };
+}
+// Stacked areas are drawn once per load/mode/resize into an offscreen canvas; each frame only adds the year line.
+function buildTypesBase() {
+  const g = typesGeom(); if (!g.w || !S.loaded) return;
+  typesBase.width = g.w * g.dpr; typesBase.height = g.h * g.dpr;
+  const c = typesBase.getContext("2d");
+  c.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
+  const n = S.maxY - S.minY + 1, x = y => (y - S.minY + 0.5) / n * g.w;
+  const share = S.typesMode === "share";
+  const tot = y => S.typeCum.get(y).reduce((a, b) => a + b, 0);
+  let maxV = 1; if (!share) for (let y = S.minY; y <= S.maxY; y++) maxV = Math.max(maxV, tot(y));
+  const yPx = v => g.top + g.ph - (share ? v : v / maxV) * g.ph;
+
+  // gridlines + year labels, recessive
+  c.font = "10px 'IBM Plex Mono', monospace"; c.fillStyle = "#8e98b0"; c.strokeStyle = "rgba(255,255,255,.08)"; c.lineWidth = 1;
+  c.textBaseline = "bottom";
+  const step = n > 250 ? 100 : n > 120 ? 50 : 25;
+  for (let y = Math.ceil(S.minY / step) * step; y <= S.maxY; y += step) {
+    const xx = Math.round(x(y)) + 0.5;
+    c.beginPath(); c.moveTo(xx, g.top); c.lineTo(xx, g.top + g.ph); c.stroke();
+    const tw = c.measureText(y).width;
+    c.fillText(y, Math.min(Math.max(xx - tw / 2, 0), g.w - tw), g.h);
+  }
+  // stacked areas, bottom (single family) to top; 1px surface gap between bands
+  const base = new Map(); for (let y = S.minY; y <= S.maxY; y++) base.set(y, 0);
+  TYPES.forEach((t, k) => {
+    c.beginPath();
+    for (let y = S.minY; y <= S.maxY; y++) {
+      const T = tot(y) || 1, v = S.typeCum.get(y)[k] / (share ? T : 1);
+      const top = base.get(y) + v;
+      y === S.minY ? c.moveTo(x(y), yPx(top)) : c.lineTo(x(y), yPx(top));
+    }
+    for (let y = S.maxY; y >= S.minY; y--) c.lineTo(x(y), yPx(base.get(y)));
+    c.closePath(); c.fillStyle = t.color; c.fill();
+    c.strokeStyle = "rgba(7,38,92,.9)"; c.lineWidth = 1; c.stroke();
+    for (let y = S.minY; y <= S.maxY; y++) { const T = tot(y) || 1; base.set(y, base.get(y) + S.typeCum.get(y)[k] / (share ? T : 1)); }
+  });
+  S.typesDirty = false;
+}
+function drawTypes() {
+  if (!S.loaded || !$("types").classList.contains("open")) return;
+  const g = typesGeom(); if (!g.w) return;
+  if (tc.width !== g.w * g.dpr || tc.height !== g.h * g.dpr) { tc.width = g.w * g.dpr; tc.height = g.h * g.dpr; S.typesDirty = true; }
+  if (S.typesDirty) buildTypesBase();
+  tctx.setTransform(1, 0, 0, 1, 0, 0);
+  tctx.clearRect(0, 0, tc.width, tc.height);
+  tctx.drawImage(typesBase, 0, 0);
+  tctx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
+  const n = S.maxY - S.minY + 1, x = y => (y - S.minY + 0.5) / n * g.w;
+  const Y = Math.min(Math.max(S.typesHover ?? S.Y ?? S.minY, S.minY), S.maxY);
+  // dim the future, mark the year
+  if (S.typesHover == null && S.Y < S.maxY) { tctx.fillStyle = "rgba(7,38,92,.55)"; tctx.fillRect(x(S.Y) , 0, g.w - x(S.Y), g.top + g.ph); }
+  tctx.strokeStyle = S.typesHover != null ? "#ffffff" : "#fff4cf"; tctx.lineWidth = 1.5;
+  tctx.beginPath(); tctx.moveTo(x(Y), g.top); tctx.lineTo(x(Y), g.top + g.ph); tctx.stroke();
+  S.typesY = S.typesHover == null ? S.Y : null;
+
+  const v = S.typeCum.get(Y) || TYPES.map(() => 0), T = v.reduce((a, b) => a + b, 0) || 1;
+  $("typesSub").textContent = `Parcels standing in ${Y}${S.typesHover != null ? " (hover)" : ""}`;
+  $("typesLegend").innerHTML = TYPES.map((t, k) => ({ t, k })).reverse().map(({ t, k }) =>
+    `<div class="r${v[k] ? "" : " zero"}"><i style="background:${t.color}"></i><span>${t.label}</span><b>${S.typesMode === "share" ? (v[k] / T * 100).toFixed(1) + "%" : fmt(v[k])}</b></div>`).join("");
+}
+function typesYear(clientX) {
+  const r = tc.getBoundingClientRect(), n = S.maxY - S.minY + 1;
+  return Math.min(Math.max(S.minY + Math.floor((clientX - r.left) / r.width * n), S.minY), S.maxY);
+}
+tc.addEventListener("pointermove", e => { if (!S.loaded) return; S.typesHover = typesYear(e.clientX); drawTypes(); });
+tc.addEventListener("pointerleave", () => { S.typesHover = null; drawTypes(); });
+tc.addEventListener("click", e => { if (!S.loaded) return; pause(); S.typesHover = null; setT(typesYear(e.clientX)); });
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+  S.typesMode = b.dataset.m; S.typesDirty = true;
+  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  drawTypes();
+}));
+const typesBtn = $("typesBtn");
+function setTypesOpen(o) { $("types").classList.toggle("open", o); typesBtn.setAttribute("aria-expanded", o); if (o) { S.typesDirty = true; drawTypes(); } }
+typesBtn.addEventListener("click", () => setTypesOpen(!$("types").classList.contains("open")));
+if (innerWidth <= 640) setTypesOpen(false);
+addEventListener("resize", () => { S.typesDirty = true; drawTypes(); });
 
 // ---------- Controls ----------
 const townSel = $("town");
