@@ -473,6 +473,8 @@ function addLayers() {
     }
   }, before);
 
+  S.mapReady = true;
+  if (S.pendingPts) { const p = S.pendingPts; S.pendingPts = null; ingest(p); if (!S.splashOpen) play(); else S.playOnClose = true; return; }
   // After a style swap, re-apply which parcels are visible and the glow for the current year
   if (S.loaded) { S.shownY = S.firstYear - 1; S.glowOn = false; S.glowT = null; S.Y = null; setT(S.t); }
 }
@@ -485,6 +487,7 @@ function setBasemap(key) {
   DEC_COLORS = PALETTES[BASEMAPS[key].palette];
   renderDecLegend();
   drawHist();
+  S.mapReady = false;
   map.once("style.load", addLayers);
   map.setStyle(BASEMAPS[key].style, { diff: false });
 }
@@ -513,25 +516,17 @@ map.on("load", () => {
   map.on("mousemove", "parcels-pts", e => map.getCanvas().style.cursor = e.features.some(f => f.properties.y <= S.Y) ? "pointer" : "");
   map.on("mouseleave", "parcels-pts", () => map.getCanvas().style.cursor = "");
 
-  const qs = new URLSearchParams(location.search);
-  const lc = s => (s || "").toLowerCase();
-  const areas = [];
-  for (const r of qs.getAll("region")) { const c = COGS.find(x => lc(x) === lc(r)); if (c) areas.push({ type: "cog", name: c }); }
-  for (const t of qs.getAll("town")) { const n = TOWNS.find(x => lc(x) === lc(t)); if (n) areas.push({ type: "town", name: n }); }
-  if (!areas.length) areas.push({ type: "cog", name: DEFAULT_REGION });
-  $("town").value = areaKey(areas[0]);
-  loadAreas(areas);
 });
 
 // ---------- Data ----------
 async function q(params, tries = 3, signal) {
-  const body = new URLSearchParams(params);
+  const body = new URLSearchParams(params), url = SVC + "/query?" + body;
   for (let i = 0; i < tries; i++) {
     const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
     const stop = () => ctl.abort();
     if (signal) { if (signal.aborted) throw new Error("cancelled"); signal.addEventListener("abort", stop); }
     try {
-      const r = await fetch(SVC + "/query", { method: "POST", body, signal: ctl.signal });
+      const r = url.length < 1800 ? await fetch(url, { signal: ctl.signal }) : await fetch(SVC + "/query", { method: "POST", body, signal: ctl.signal });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = await r.json();
       if (j.error) throw new Error(j.error.message || "Query error");
@@ -598,14 +593,20 @@ async function loadAreas(areas) {
     if (token !== loadToken) return;
     if (!count) { setStatus(`No parcels with a build year found for ${label}.`, true); return; }
 
-    const chunks = Array.from({ length: Math.ceil(count / PAGE) }, (_, i) => ids.slice(i * PAGE, (i + 1) * PAGE));
+    const chunks = [];
+    let cur = [];
+    for (const id of ids) {
+      if (cur.length && (cur.length >= PAGE || id - cur[cur.length - 1] > 2500)) { chunks.push(cur); cur = []; }
+      cur.push(id);
+    }
+    if (cur.length) chunks.push(cur);
     const pts = [];
     setStatus(`Loading ${label}: 0 of ${fmt(count)} parcels`);
     await pool(chunks, CONCURRENCY, async chunk => {
       if (token !== loadToken) return;
       // Only the parcel centroid and build year come down; details load when a point is clicked.
       const j = await q({
-        objectIds: chunk.join(","), f: "json", outSR: 4326, outFields: "OBJECTID,AYB,State_Use_Description",
+        where: `OBJECTID>=${chunk[0]} AND OBJECTID<=${chunk[chunk.length - 1]} AND ${where}`, f: "json", outSR: 4326, outFields: "OBJECTID,AYB,State_Use_Description",
         returnGeometry: "false", returnCentroid: "true"
       }, 3, ctl.signal);
       if (token !== loadToken) return;
@@ -633,6 +634,7 @@ async function loadAreas(areas) {
 }
 
 function ingest(pts) {
+  if (!S.mapReady || !map.getSource("pts")) { S.pendingPts = pts; return; }   // map still loading; addLayers picks this up
   S.ptsByYear = new Map(); S.counts = new Map(); S.cum = new Map();
   const bb = [Infinity, Infinity, -Infinity, -Infinity];
   const years = [];
@@ -1021,6 +1023,17 @@ fetch(SVC + "?f=json").then(r => r.json()).then(j => {
 }).catch(() => {});
 
 if (matchMedia("(prefers-reduced-motion: reduce)").matches) $("speed").value = "1", S.speed = 1;
+
+// ---------- Initial area: ?region= / ?town= links, else the default region ----------
+(() => {
+  const qs = new URLSearchParams(location.search);
+  const lc = s => (s || "").toLowerCase();
+  const areas = [];
+  for (const r of qs.getAll("region")) { const c = COGS.find(x => lc(x) === lc(r)); if (c) areas.push({ type: "cog", name: c }); }
+  for (const t of qs.getAll("town")) { const n = TOWNS.find(x => lc(x) === lc(t)); if (n) areas.push({ type: "town", name: n }); }
+  if (!areas.length) areas.push({ type: "cog", name: DEFAULT_REGION });
+  loadAreas(areas);
+})();
 </script>
 
 <script>
