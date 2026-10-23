@@ -406,14 +406,14 @@ const BASEMAPS = {
         tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
         attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
       lbl: { type: "raster", tileSize: 256,
-        tiles: ["a", "b", "c", "d"].map(s => `https://${s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png`),
-        attribution: "© OpenStreetMap contributors © CARTO" }
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],
+        attribution: "Labels © Esri" }
     },
     layers: [
       { id: "bg", type: "background", paint: { "background-color": "#1d1d1d" } },
       // black-and-white, slightly darkened so the points stand out
       { id: "imagery", type: "raster", source: "img", paint: { "raster-saturation": -1, "raster-contrast": 0.1, "raster-brightness-max": 0.72 } },
-      { id: "ref-labels", type: "raster", source: "lbl" }
+      { id: "ref-labels", type: "raster", source: "lbl", paint: { "raster-saturation": -1 } }
     ]
   } }
 };
