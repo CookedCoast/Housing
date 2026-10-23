@@ -522,7 +522,8 @@ map.on("load", () => {
 async function q(params, tries = 3, signal) {
   const body = new URLSearchParams(params), url = SVC + "/query?" + body;
   for (let i = 0; i < tries; i++) {
-    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 30000);
+    // The service occasionally stalls on one request; a short timeout plus a retry is much faster than waiting.
+    const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 10000);
     const stop = () => ctl.abort();
     if (signal) { if (signal.aborted) throw new Error("cancelled"); signal.addEventListener("abort", stop); }
     try {
@@ -588,7 +589,7 @@ async function loadAreas(areas) {
     const where = `(${areas.map(areaWhere).join(" OR ")}) AND AYB>=${MIN_VALID} AND AYB<=${MAX_YEAR}`;
     setStatus(`Finding parcels in ${label}…`);
     // Get the matching IDs first (fast), then fetch them in OBJECTID ranges; offset paging is very slow on this service.
-    const ids = ((await q({ where, returnIdsOnly: "true", f: "json" }, 3, ctl.signal)).objectIds || []).sort((a, b) => a - b);
+    const ids = ((await q({ where, returnIdsOnly: "true", f: "json" }, 4, ctl.signal)).objectIds || []).sort((a, b) => a - b);
     const count = ids.length;
     if (token !== loadToken) return;
     if (!count) { setStatus(`No parcels with a build year found for ${label}.`, true); return; }
@@ -608,7 +609,7 @@ async function loadAreas(areas) {
       const j = await q({
         where: `OBJECTID>=${chunk[0]} AND OBJECTID<=${chunk[chunk.length - 1]} AND ${where}`, f: "json", outSR: 4326, outFields: "OBJECTID,AYB,State_Use_Description",
         returnGeometry: "false", returnCentroid: "true"
-      }, 3, ctl.signal);
+      }, 4, ctl.signal);
       if (token !== loadToken) return;
       for (const f of j.features || []) {
         const c = f.centroid; if (!c || !isFinite(c.x) || !isFinite(c.y)) continue;
