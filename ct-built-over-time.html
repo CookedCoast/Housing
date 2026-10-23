@@ -75,6 +75,11 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
 .stats b{color:var(--text);font-weight:500}
 .timeline{display:grid;gap:8px;min-width:0}
 #hist{width:100%;height:84px;display:block;cursor:ew-resize;touch-action:none}
+.era-line{font-size:12.5px;line-height:1.35;color:var(--muted);min-height:1.35em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.era-line b{color:var(--text);font-weight:600}
+.era-line .yrs{font:11px var(--f-mono);color:var(--muted)}
+.era-line .evt{color:var(--ember);font-weight:600}
+@media (max-width:640px){ .era-line{font-size:11.5px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical} }
 #slider{width:100%;accent-color:var(--brand-green);margin:0}
 .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
 .controls label{display:flex;gap:6px;align-items:center}
@@ -241,7 +246,8 @@ h1{color:#fff}
     <div class="stats">Built this year <b id="nYear">0</b><br>Standing, built by now <b id="nCum">0</b></div>
   </div>
   <div class="timeline">
-    <canvas id="hist" tabindex="0" aria-label="Buildings per year. Click or drag to jump to a year."></canvas>
+    <div class="era-line" id="eraLine" aria-live="polite"></div>
+    <canvas id="hist" tabindex="0" aria-label="Buildings per year, with shaded eras of Connecticut housing history. Click or drag to jump to a year."></canvas>
     <input id="slider" type="range" min="1700" max="2026" step="1" value="1700" aria-label="Year">
     <div class="controls">
       <button id="play">▶ Play</button>
@@ -283,7 +289,7 @@ h1{color:#fff}
     <h3>How to use it</h3>
     <ol class="steps">
       <li><b>Pick a place.</b> Choose a town or one of the nine planning regions and press <b>Load</b>. Use <b>+ Add</b> to put several towns or regions on the map together.</li>
-      <li><b>Move through time.</b> Press <b>Play</b>, or drag the slider or the bar chart along the bottom to jump to any year. New buildings flash orange, then settle into their decade color.</li>
+      <li><b>Move through time.</b> Press <b>Play</b>, or drag the slider or the bar chart along the bottom to jump to any year. New buildings flash orange, then settle into their decade color. Shaded bands on the timeline mark key eras in Connecticut housing, orange markers flag turning points, and a caption explains what was happening.</li>
       <li><b>Look closer.</b> Click any dot for its address, land use and living area.</li>
       <li><b>Compare home types.</b> The Home types panel tracks single family, multi-family, condos and more. Switch to <b>Share</b> to see how the mix changes.</li>
     </ol>
@@ -309,7 +315,7 @@ h1{color:#fff}
 const SVC = "https://services3.arcgis.com/3FL1kr7L4LvwA2Kb/arcgis/rest/services/Connecticut_CAMA_and_Parcel_Layer/FeatureServer/0";
 const PAGE = 2000, CONCURRENCY = 6;
 const MIN_VALID = 1600, MAX_YEAR = new Date().getFullYear();
-const DEFAULT_TOWN = "Glastonbury";
+const DEFAULT_REGION = "Southeastern CT";
 // Planning regions, matching the COG field in the parcel layer
 const COGS = ["Capitol Region","CT Metropolitan","Lower CT River Valley","Naugatuck Valley","Northeastern CT","Northwest Hills","South Central Regional","Southeastern CT","Western CT"];
 // Some towns are spelled differently in the source data
@@ -344,6 +350,33 @@ function classifyUse(desc) {
   if (/comm|indus|exempt|exmpt|retail|office|off bldg|store|shop|church|mixed|mix use|vac|land|garage|motel|hotel|auto|bank|rest|school|util|farm|use assess/.test(s)) return 5;
   if (/single|one[- ]?fam|\b1[- ]?fam|sfr|\bsf|sfam|res(id)?|dwel|water|wtrft|ocean|ocn|lake|m(dl)?[- ]?0?1\b/.test(s)) return 0;
   return 5;
+}
+// Periods of significance for Connecticut housing and sprawl, shaded on the timeline.
+const ERAS = [
+  { from: 1600, to: 1819, name: "Colonial & farm towns", short: "Colonial", note: "Village greens, farmhouses and seaports; most people farm." },
+  { from: 1820, to: 1889, name: "Industrial era", short: "Industrial", note: "Water-powered mills and factories pull workers into river towns and cities." },
+  { from: 1890, to: 1929, name: "Streetcar & three-decker era", short: "Streetcar", note: "Trolley lines extend the city; two- and three-family houses fill in around factories and downtowns." },
+  { from: 1930, to: 1945, name: "Depression & war", short: "Depr./war", note: "Building collapses in the Depression; war industry brings emergency housing near shipyards and plants." },
+  { from: 1946, to: 1973, name: "Postwar suburban boom", short: "Postwar boom", note: "GI Bill and FHA mortgages, cars and new highways fuel single-family subdivisions on former farmland." },
+  { from: 1974, to: 1990, name: "Condos & late suburbs", short: "Condos", note: "Rising land and energy costs bring condos and townhouses; the 1980s boom ends in a sharp early-1990s bust." },
+  { from: 1991, to: 2008, name: "Exurban spread", short: "Exurbs", note: "Large-lot houses push into rural towns at the edges of metro areas while older centers grow slowly." },
+  { from: 2009, to: 9999, name: "After the housing crash", short: "Post-2008", note: "Construction stays low after 2008; new building shifts toward apartments, infill and downtowns." }
+];
+const EVENTS = [
+  { y: 1929, text: "Stock market crash; the Great Depression begins" },
+  { y: 1944, text: "GI Bill offers veterans low-cost home loans" },
+  { y: 1958, text: "Connecticut Turnpike (I-95) opens across the state" },
+  { y: 1989, text: "CT Affordable Housing Appeals Act (§8-30g) passes" },
+  { y: 2008, text: "Housing crash and Great Recession" }
+];
+const eraOf = y => ERAS.find(e => y >= e.from && y <= e.to) || ERAS[0];
+function updateEraLine(Y) {
+  const e = eraOf(Y), ev = EVENTS.filter(v => Y >= v.y && Y - v.y <= 3).pop();
+  const yrs = `${e.from <= 1600 ? "before 1820" : e.to >= 9999 ? e.from + "–now" : e.from + "–" + e.to}`;
+  $("eraLine").innerHTML = ev
+    ? `<span class="evt">${ev.y}: ${esc(ev.text)}</span> · <b>${esc(e.name)}</b>`
+    : `<b>${esc(e.name)}</b> <span class="yrs">${yrs}</span> · ${esc(e.note)}`;
+  $("eraLine").title = `${e.name} (${yrs}): ${e.note}`;
 }
 const DEC_STEP = ["step", ["get", "y"], DEC_COLORS[0], ...DEC_COLORS.slice(1).flatMap((c, i) => [1900 + i * 10, c])];
 
@@ -425,7 +458,7 @@ map.on("load", () => {
   const areas = [];
   for (const r of qs.getAll("region")) { const c = COGS.find(x => lc(x) === lc(r)); if (c) areas.push({ type: "cog", name: c }); }
   for (const t of qs.getAll("town")) { const n = TOWNS.find(x => lc(x) === lc(t)); if (n) areas.push({ type: "town", name: n }); }
-  if (!areas.length) areas.push({ type: "town", name: DEFAULT_TOWN });
+  if (!areas.length) areas.push({ type: "cog", name: DEFAULT_REGION });
   $("town").value = areaKey(areas[0]);
   loadAreas(areas);
 });
@@ -613,6 +646,7 @@ function setT(t) {
     $("year").textContent = Y;
     $("nYear").textContent = fmt(S.counts.get(Y) || 0);
     $("nCum").textContent = fmt(S.cum.get(Y) || 0);
+    updateEraLine(Y);
     $("slider").value = Y;
   }
   // Glow paint is data-driven, so each update re-processes the glow points; cap it to quarter-year steps.
@@ -681,12 +715,33 @@ function drawHist() {
   hctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   hctx.clearRect(0, 0, w, h);
   if (!S.loaded) return;
-  const n = S.maxY - S.minY + 1, axis = 14, top = 4, ph = h - axis - top;
+  const n = S.maxY - S.minY + 1, axis = 14, top = 14, ph = h - axis - top;
   const bw = w / n;
   const x = y => (y - S.minY) * bw;
 
+  // Era bands (alternating shade) with labels along the top edge
+  hctx.font = "600 9.5px 'Golos Text', system-ui, sans-serif"; hctx.textBaseline = "top";
+  ERAS.forEach((e, i) => {
+    const a = Math.max(e.from, S.minY), b = Math.min(e.to, S.maxY);
+    if (b < a) return;
+    const x0 = x(a), x1 = x(b + 1);
+    const cur = S.Y != null && S.Y >= e.from && S.Y <= e.to;
+    hctx.fillStyle = cur ? "rgba(118,176,83,.16)" : i % 2 ? "rgba(255,255,255,.045)" : "rgba(255,255,255,0)";
+    hctx.fillRect(x0, 0, x1 - x0, top + ph);
+    if (i && e.from > S.minY) { hctx.fillStyle = "rgba(255,255,255,.22)"; hctx.fillRect(Math.round(x0), 0, 1, top + ph); }
+    const label = hctx.measureText(e.name).width + 8 <= x1 - x0 ? e.name : hctx.measureText(e.short).width + 8 <= x1 - x0 ? e.short : "";
+    if (label) { hctx.fillStyle = cur ? "#cfe6bf" : "#8e98b0"; hctx.fillText(label, x0 + 4, 2); }
+  });
+  // Key events: small markers on the top edge of the plot
+  hctx.fillStyle = "#ffb347";
+  for (const ev of EVENTS) {
+    if (ev.y < S.minY || ev.y > S.maxY) continue;
+    const ex = x(ev.y) + bw / 2;
+    hctx.beginPath(); hctx.moveTo(ex - 3.5, top - 1); hctx.lineTo(ex + 3.5, top - 1); hctx.lineTo(ex, top + 4); hctx.closePath(); hctx.fill();
+  }
+
   hctx.font = "10px 'IBM Plex Mono', monospace";
-  hctx.fillStyle = "#8e98b0"; hctx.strokeStyle = "#26304a"; hctx.lineWidth = 1;
+  hctx.fillStyle = "#8e98b0"; hctx.strokeStyle = "rgba(255,255,255,.07)"; hctx.lineWidth = 1;
   hctx.textBaseline = "bottom";
   const step = n > 250 ? 50 : n > 120 ? 25 : 10;
   for (let y = Math.ceil(S.minY / step) * step; y <= S.maxY; y += step) {
@@ -723,7 +778,12 @@ function histToYear(clientX) {
 }
 let dragging = false;
 hist.addEventListener("pointerdown", e => { if (!S.loaded) return; dragging = true; hist.setPointerCapture(e.pointerId); scrubTo(histToYear(e.clientX)); });
-hist.addEventListener("pointermove", e => { if (dragging) scrubTo(histToYear(e.clientX)); });
+hist.addEventListener("pointermove", e => {
+  if (dragging) { scrubTo(histToYear(e.clientX)); return; }
+  if (!S.loaded) return;
+  const y = Math.floor(histToYear(e.clientX)), ev = EVENTS.find(v => v.y === y), er = eraOf(y);
+  hist.title = `${y} · ${er.name}${ev ? "\n" + ev.y + ": " + ev.text : ""}`;
+});
 hist.addEventListener("pointerup", () => dragging = false);
 hist.addEventListener("keydown", e => {
   if (e.key === "ArrowLeft") { pause(); setT(Math.floor(S.t) - 1); e.preventDefault(); }
