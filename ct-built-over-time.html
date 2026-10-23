@@ -328,8 +328,9 @@ const areaLabel = a => a.type === "cog" ? `${a.name} region` : a.name;
 const sqlStr = s => `'${String(s).replace(/'/g, "''")}'`;
 function areaWhere(a) {
   if (a.type === "cog") return `COG=${sqlStr(a.name)}`;
-  const names = [a.name, ...(TOWN_ALIASES[a.name] || [])].map(n => sqlStr(n.toUpperCase()));
-  return `UPPER(Town_Name) IN (${names.join(",")})`;
+  // Exact match (no UPPER) so the server can use its index
+  const names = [a.name, ...(TOWN_ALIASES[a.name] || [])].map(sqlStr);
+  return `Town_Name IN (${names.join(",")})`;
 }
 function describe(areas) {
   const l = areas.map(areaLabel);
@@ -354,20 +355,21 @@ async function loadAreas(areas) {
   $("load").disabled = $("add").disabled = true;
   try {
     const where = `(${areas.map(areaWhere).join(" OR ")}) AND AYB>=${MIN_VALID} AND AYB<=${MAX_YEAR}`;
-    setStatus(`Counting parcels in ${label}…`);
-    const { count } = await q({ where, returnCountOnly: "true", f: "json" });
+    setStatus(`Finding parcels in ${label}…`);
+    // Get the matching IDs first (fast), then fetch them in OBJECTID ranges; offset paging is very slow on this service.
+    const ids = ((await q({ where, returnIdsOnly: "true", f: "json" })).objectIds || []).sort((a, b) => a - b);
+    const count = ids.length;
     if (token !== loadToken) return;
     if (!count) { setStatus(`No parcels with a build year found for ${label}.`, true); return; }
 
-    const offsets = Array.from({ length: Math.ceil(count / PAGE) }, (_, i) => i * PAGE);
+    const ranges = Array.from({ length: Math.ceil(count / PAGE) }, (_, i) => [ids[i * PAGE], ids[Math.min((i + 1) * PAGE, count) - 1]]);
     const pts = [];
     setStatus(`Loading ${label}: 0 of ${fmt(count)} parcels`);
-    await pool(offsets, CONCURRENCY, async off => {
+    await pool(ranges, CONCURRENCY, async ([lo, hi]) => {
       // Only the parcel centroid and build year come down; details load when a point is clicked.
       const j = await q({
-        where, f: "json", outSR: 4326, outFields: "OBJECTID,AYB",
-        returnGeometry: "false", returnCentroid: "true",
-        orderByFields: "OBJECTID", resultOffset: off, resultRecordCount: PAGE
+        where: `OBJECTID>=${lo} AND OBJECTID<=${hi} AND ${where}`, f: "json", outSR: 4326, outFields: "OBJECTID,AYB",
+        returnGeometry: "false", returnCentroid: "true"
       });
       if (token !== loadToken) return;
       for (const f of j.features || []) {
