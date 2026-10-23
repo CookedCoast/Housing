@@ -46,6 +46,7 @@ select,button{
 select{flex:1;min-width:0}
 .chips{display:flex;flex-wrap:wrap;gap:4px}
 .chips:empty{display:none}
+.basemap-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted)}
 .chip{display:inline-flex;align-items:center;gap:2px;font-size:12px;padding:2px 2px 2px 9px;border:1px solid var(--rule);border-radius:999px;background:#0d3170}
 .chip button{border:0;background:none;padding:0 6px;min-height:0!important;color:var(--muted);font-size:15px;line-height:1.2;cursor:pointer}
 .chip button:hover{color:#fff}
@@ -213,6 +214,14 @@ h1{color:#fff}
     <button id="add" title="Add this town or region to the map">+ Add</button>
   </div>
   <div class="chips" id="chips" aria-label="Areas on the map"></div>
+  <div class="basemap-row">
+    <span>Basemap</span>
+    <div class="seg" id="basemapSeg" role="group" aria-label="Basemap">
+      <button type="button" data-b="light" aria-pressed="true">Light grey</button>
+      <button type="button" data-b="dark" aria-pressed="false">Dark grey</button>
+      <button type="button" data-b="imagery" aria-pressed="false">Imagery</button>
+    </div>
+  </div>
   <div id="status" role="status">Starting…</div>
   <div class="legend">
     <div>Just built</div>
@@ -324,7 +333,13 @@ const TOWN_ALIASES = { "Greenwich": ["Greenwhich"], "Deep River": ["Deep_river"]
 const TOWNS = ["Andover","Ansonia","Ashford","Avon","Barkhamsted","Beacon Falls","Berlin","Bethany","Bethel","Bethlehem","Bloomfield","Bolton","Bozrah","Branford","Bridgeport","Bridgewater","Bristol","Brookfield","Brooklyn","Burlington","Canaan","Canterbury","Canton","Chaplin","Cheshire","Chester","Clinton","Colchester","Colebrook","Columbia","Cornwall","Coventry","Cromwell","Danbury","Darien","Deep River","Derby","Durham","East Granby","East Haddam","East Hampton","East Hartford","East Haven","East Lyme","East Windsor","Eastford","Easton","Ellington","Enfield","Essex","Fairfield","Farmington","Franklin","Glastonbury","Goshen","Granby","Greenwich","Griswold","Groton","Guilford","Haddam","Hamden","Hampton","Hartford","Hartland","Harwinton","Hebron","Kent","Killingly","Killingworth","Lebanon","Ledyard","Lisbon","Litchfield","Lyme","Madison","Manchester","Mansfield","Marlborough","Meriden","Middlebury","Middlefield","Middletown","Milford","Monroe","Montville","Morris","Naugatuck","New Britain","New Canaan","New Fairfield","New Hartford","New Haven","New London","New Milford","Newington","Newtown","Norfolk","North Branford","North Canaan","North Haven","North Stonington","Norwalk","Norwich","Old Lyme","Old Saybrook","Orange","Oxford","Plainfield","Plainville","Plymouth","Pomfret","Portland","Preston","Prospect","Putnam","Redding","Ridgefield","Rocky Hill","Roxbury","Salem","Salisbury","Scotland","Seymour","Sharon","Shelton","Sherman","Simsbury","Somers","South Windsor","Southbury","Southington","Sprague","Stafford","Stamford","Sterling","Stonington","Stratford","Suffield","Thomaston","Thompson","Tolland","Torrington","Trumbull","Union","Vernon","Voluntown","Wallingford","Warren","Washington","Waterbury","Waterford","Watertown","West Hartford","West Haven","Westbrook","Weston","Westport","Wethersfield","Willington","Wilton","Winchester","Windham","Windsor","Windsor Locks","Wolcott","Woodbridge","Woodbury","Woodstock"];
 
 // Decade colors for built parcels: pre-1900, then 1900s through 2020s (sequential, old = deep indigo, new = orange)
-const DEC_COLORS = ["#0d0887","#2f0596","#4903a0","#6300a7","#7a02a8","#8f0da4","#a51f99","#b6308b","#c6417d","#d5536f","#e16462","#eb7655","#f58b47","#fb9f3a"];
+const PALETTES = {
+  // light basemap: deep indigo (old) to orange (new)
+  light: ["#0d0887","#2f0596","#4903a0","#6300a7","#7a02a8","#8f0da4","#a51f99","#b6308b","#c6417d","#d5536f","#e16462","#eb7655","#f58b47","#fb9f3a"],
+  // dark basemap / imagery: purple (old) to yellow (new), so old parcels don't vanish into the background
+  dark:  ["#8808a6","#9c179e","#ad2793","#bd3786","#ca457a","#d6556d","#e26561","#eb7655","#f3874a","#f99a3e","#fdae32","#fdc328","#fada24","#f3f027"]
+};
+let DEC_COLORS = PALETTES.light;
 const DEC_LABELS = ["<1900","1900s","1910s","1920s","1930s","1940s","1950s","1960s","1970s","1980s","1990s","2000s","2010s","2020s"];
 const decIdx = y => y < 1900 ? 0 : Math.min(DEC_COLORS.length - 1, Math.floor((y - 1900) / 10) + 1);
 const eraColor = y => DEC_COLORS[decIdx(y)];
@@ -378,7 +393,35 @@ function updateEraLine(Y) {
     : `<b>${esc(e.name)}</b> <span class="yrs">${yrs}</span> · ${esc(e.note)}`;
   $("eraLine").title = `${e.name} (${yrs}): ${e.note}`;
 }
-const DEC_STEP = ["step", ["get", "y"], DEC_COLORS[0], ...DEC_COLORS.slice(1).flatMap((c, i) => [1900 + i * 10, c])];
+const decStep = () => ["step", ["get", "y"], DEC_COLORS[0], ...DEC_COLORS.slice(1).flatMap((c, i) => [1900 + i * 10, c])];
+
+// ---------- Basemaps ----------
+const BASEMAPS = {
+  light: { palette: "light", style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" },
+  dark:  { palette: "dark",  style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json" },
+  imagery: { palette: "dark", style: {
+    version: 8,
+    sources: {
+      img: { type: "raster", tileSize: 256, maxzoom: 19,
+        tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+        attribution: "Imagery © Esri, Maxar, Earthstar Geographics" },
+      lbl: { type: "raster", tileSize: 256,
+        tiles: ["a", "b", "c", "d"].map(s => `https://${s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png`),
+        attribution: "© OpenStreetMap contributors © CARTO" }
+    },
+    layers: [
+      { id: "bg", type: "background", paint: { "background-color": "#1d1d1d" } },
+      // black-and-white, slightly darkened so the points stand out
+      { id: "imagery", type: "raster", source: "img", paint: { "raster-saturation": -1, "raster-contrast": 0.1, "raster-brightness-max": 0.72 } },
+      { id: "ref-labels", type: "raster", source: "lbl" }
+    ]
+  } }
+};
+const BASEMAP_KEY = "ctBuiltOverTime.basemap";
+let startBasemap = new URLSearchParams(location.search).get("basemap");
+if (!BASEMAPS[startBasemap]) { try { startBasemap = localStorage.getItem(BASEMAP_KEY); } catch (e) {} }
+if (!BASEMAPS[startBasemap]) startBasemap = "light";
+DEC_COLORS = PALETTES[BASEMAPS[startBasemap].palette];
 
 const $ = id => document.getElementById(id);
 const fmt = n => n.toLocaleString("en-US");
@@ -395,7 +438,7 @@ const S = {
 // ---------- Map ----------
 const map = new maplibregl.Map({
   container: "map",
-  style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+  style: BASEMAPS[startBasemap].style,
   bounds: [[-73.73, 40.98], [-71.78, 42.05]],
   fitBoundsOptions: { padding: 40 },
   attributionControl: { compact: true }
@@ -404,33 +447,51 @@ map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom
 
 const EMPTY = { type: "FeatureCollection", features: [] };
 
-map.on("load", () => {
+S.basemap = startBasemap;
+// Our sources/layers. A basemap switch replaces the whole style, so this runs again afterwards.
+function addLayers() {
   // Draw points above every basemap fill (including building footprints) but under place labels.
   const layers = map.getStyle().layers;
   let lastFill = -1;
-  layers.forEach((l, i) => { if (l.type === "fill" || l.type === "fill-extrusion" || l.type === "line") lastFill = i; });
-  const firstSymbol = layers.slice(lastFill + 1).find(l => l.type === "symbol")?.id;
+  layers.forEach((l, i) => { if (l.type === "fill" || l.type === "fill-extrusion" || l.type === "line" || l.type === "raster") lastFill = i; });
+  const before = layers.find(l => l.id === "ref-labels")?.id || layers.slice(lastFill + 1).find(l => l.type === "symbol")?.id;
 
-  map.addSource("pts", { type: "geojson", data: EMPTY, promoteId: "id" });
+  map.addSource("pts", { type: "geojson", data: S.pts ? { type: "FeatureCollection", features: S.pts } : EMPTY, promoteId: "id" });
   map.addSource("recent-pts", { type: "geojson", data: EMPTY });
 
   // Glow halo sits under the points so a just-built parcel shows its decade color inside an orange flare.
   map.addLayer({
     id: "glow-halo", type: "circle", source: "recent-pts",
     paint: { "circle-color": "#ffb347", "circle-opacity": 0, "circle-radius": 6, "circle-blur": 1, "circle-pitch-alignment": "map" }
-  }, firstSymbol);
+  }, before);
   map.addLayer({
     id: "parcels-pts", type: "circle", source: "pts",
     paint: {
-      "circle-color": DEC_STEP,
+      "circle-color": decStep(),
       // Shown/hidden per parcel via feature-state, which is far cheaper than re-filtering every year
       "circle-opacity": ["case", ["boolean", ["feature-state", "on"], false], 0.9, 0],
-      "circle-stroke-opacity": ["case", ["boolean", ["feature-state", "on"], false], 1, 0],
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 1.4, 11, 2.4, 14, 4.5, 17, 8],
-      "circle-stroke-color": "#ffffff",
-      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 10, 0, 13, 0.6, 16, 1]
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 1.4, 11, 2.4, 14, 4.5, 17, 8]
     }
-  }, firstSymbol);
+  }, before);
+
+  // After a style swap, re-apply which parcels are visible and the glow for the current year
+  if (S.loaded) { S.shownY = S.firstYear - 1; S.glowOn = false; S.glowT = null; S.Y = null; setT(S.t); }
+}
+
+function setBasemap(key) {
+  if (!BASEMAPS[key] || key === S.basemap) return;
+  S.basemap = key;
+  try { localStorage.setItem(BASEMAP_KEY, key); } catch (e) {}
+  document.querySelectorAll("#basemapSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.b === key));
+  DEC_COLORS = PALETTES[BASEMAPS[key].palette];
+  renderDecLegend();
+  drawHist();
+  map.once("style.load", addLayers);
+  map.setStyle(BASEMAPS[key].style, { diff: false });
+}
+
+map.on("load", () => {
+  addLayers();
 
   map.on("click", "parcels-pts", async e => {
     const hit = e.features.find(f => f.properties.y <= S.Y);
@@ -597,6 +658,7 @@ function ingest(pts) {
   }
   S.typesDirty = true;
 
+  S.pts = pts;
   map.getSource("pts").setData({ type: "FeatureCollection", features: pts });
   map.removeFeatureState({ source: "pts" });
   S.shownY = S.firstYear - 1;
@@ -793,7 +855,14 @@ hist.addEventListener("keydown", e => {
 addEventListener("resize", drawHist);
 
 // ---------- Legend ----------
-$("decLegend").innerHTML = DEC_COLORS.map((c, i) => `<div><span style="background:${c}"></span>${DEC_LABELS[i]}</div>`).join("");
+function renderDecLegend() {
+  $("decLegend").innerHTML = DEC_COLORS.map((c, i) => `<div><span style="background:${c}"></span>${DEC_LABELS[i]}</div>`).join("");
+}
+renderDecLegend();
+document.querySelectorAll("#basemapSeg button").forEach(b => {
+  b.setAttribute("aria-pressed", b.dataset.b === S.basemap);
+  b.addEventListener("click", () => setBasemap(b.dataset.b));
+});
 
 // ---------- Home types chart ----------
 const tc = $("typesChart"), tctx = tc.getContext("2d");
@@ -871,9 +940,9 @@ function typesYear(clientX) {
 tc.addEventListener("pointermove", e => { if (!S.loaded) return; S.typesHover = typesYear(e.clientX); drawTypes(); });
 tc.addEventListener("pointerleave", () => { S.typesHover = null; drawTypes(); });
 tc.addEventListener("click", e => { if (!S.loaded) return; pause(); S.typesHover = null; setT(typesYear(e.clientX)); });
-document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+document.querySelectorAll("#types .seg button").forEach(b => b.addEventListener("click", () => {
   S.typesMode = b.dataset.m; S.typesDirty = true;
-  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  document.querySelectorAll("#types .seg button").forEach(x => x.setAttribute("aria-pressed", x === b));
   drawTypes();
 }));
 const typesBtn = $("typesBtn");
