@@ -125,11 +125,17 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
 .era-line .yrs{font:11px var(--f-mono);color:var(--muted)}
 .era-line .evt{color:var(--ember);font-weight:600}
 .era-note{text-wrap:pretty}
+/* "more/less" toggle for the era description; only shown on phones when the description is clipped */
+.era-more{display:none;margin-left:auto;font:600 11.5px/1.35 var(--f-body);color:#cfe6bf;background:none;border:0;padding:0 2px;min-height:0!important;cursor:pointer;
+  text-decoration:underline;text-underline-offset:3px}
 @media (max-width:640px){
   .era-line{font-size:11.5px;min-height:0}
   .era-name{font-size:12px}
   .era-note{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .era-line.open .era-note{display:block;overflow:visible}
+  .era-more{display:inline}
 }
+.era-more[hidden]{display:none!important}
 #slider{width:100%;accent-color:var(--brand-green);margin:0}
 .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
 .controls label{display:flex;gap:6px;align-items:center}
@@ -368,7 +374,7 @@ h1{color:#fff}
     <ol class="steps">
       <li><b>Pick a place.</b> Choose a town or one of the nine planning regions and the map loads it. Use <b>+ Add another…</b> to put several towns or regions on the map together, and the × on each tag to remove one.</li>
       <li><b>Move through time.</b> Press <b>Play</b>, or drag the slider or the bar chart along the bottom to jump to any year. New buildings flash orange, then settle into their decade color. Shaded bands on the timeline mark key eras in Connecticut housing, orange markers flag turning points, and a caption explains what was happening.</li>
-      <li><b>Focus on one decade or era.</b> Click a decade or era in the legend, an era name on the timeline, or the era caption, and the map shows only what was built then and pauses. Press <b>Play this span</b> to watch just that period, or <b>Show all</b> to go back.</li>
+      <li><b>Focus on one decade or era.</b> Click a decade or era in the legend, an era name on the timeline, or the era caption, and the map shows only what was built then and pauses. Press <b>Play span</b> to watch just that period, or <b>Show all</b> to go back.</li>
       <li><b>Look closer.</b> Click any dot for its address, land use and living area.</li>
       <li><b>See it from the air.</b> Choose <b>Aerials</b> for historical aerial photos from 1934 to 2023, then turn on <b>Swipe to compare</b> and drag the divider to compare two years. Town and planning-region outlines can be turned on or off under Boundaries.</li>
       <li><b>Compare home types.</b> The Home types panel tracks single family, multi-family, condos and more. Switch to <b>Share</b> to see how the mix changes.</li>
@@ -463,8 +469,20 @@ function updateEraLine(Y) {
   const yrs = eraYears(e);
   $("eraLine").innerHTML =
     `<div class="era-head"><button type="button" class="era-name" data-era="${i}" title="Show only the ${esc(e.name)}">${esc(e.name)}</button>` +
-    `<span class="yrs">${yrs}</span>${ev ? `<span class="evt">${ev.y}: ${esc(ev.text)}</span>` : ""}</div>` +
+    `<span class="yrs">${yrs}</span>${ev ? `<span class="evt">${ev.y}: ${esc(ev.text)}</span>` : ""}` +
+    `<button type="button" class="era-more" aria-controls="eraLine" hidden>more</button></div>` +
     `<div class="era-note">${esc(e.note)}</div>`;
+  fitEraNote();
+}
+// On phones the description is clipped to two lines; show "more" only when something is actually cut off.
+function fitEraNote() {
+  const line = $("eraLine"), note = line.querySelector(".era-note"), more = line.querySelector(".era-more");
+  if (!note || !more) return;
+  line.classList.toggle("open", !!S.noteOpen);
+  const clipped = note.scrollHeight > note.clientHeight + 1;
+  more.hidden = !(S.noteOpen || clipped);
+  more.textContent = S.noteOpen ? "less" : "more";
+  more.setAttribute("aria-expanded", !!S.noteOpen);
 }
 
 // ---------- Decade / era filter ----------
@@ -536,15 +554,9 @@ const AERIALS = [
   { y: "1934", label: "1934 · black & white", svc: "Historic_1934" },
   { y: "1990", label: "1990 · black & white", svc: "Ortho_1990" },
   { y: "2004", label: "2004", svc: "Ortho_2004" },
-  { y: "2006", label: "2006 · NAIP", svc: "NAIP_2006" },
-  { y: "2008", label: "2008 · NAIP", svc: "NAIP_2008" },
-  { y: "2010", label: "2010 · NAIP", svc: "NAIP_2010" },
   { y: "2012", label: "2012", svc: "Ortho_2012_tiled", tiled: true },
-  { y: "2014", label: "2014 · NAIP", svc: "NAIP_2014" },
   { y: "2016", label: "2016", svc: "Ortho_2016_tiled", tiled: true },
-  { y: "2018", label: "2018 · NAIP", svc: "NAIP_2018" },
   { y: "2019", label: "2019", svc: "Ortho_2019_tiled", tiled: true },
-  { y: "2021", label: "2021 · NAIP", svc: "NAIP_2021" },
   { y: "2023", label: "2023", svc: "Ortho_2023_tiled", tiled: true }
 ];
 const aerialOf = y => AERIALS.find(a => a.y === y) || AERIALS[0];
@@ -597,7 +609,7 @@ const S = {
   ptsByYear: new Map(), areas: [],
   counts: new Map(), cum: new Map(), maxCount: 1, loaded: false,
   range: null, aerialA: "1934", aerialB: "2023", bounds: null,
-  showTowns: true, showRegions: true
+  showTowns: true, showRegions: true, noteOpen: false
 };
 try {
   const b = JSON.parse(localStorage.getItem(BOUNDS_KEY) || "null");
@@ -1118,6 +1130,7 @@ function drawHist() {
 
   // Era bands (alternating shade) with labels along the top edge. Click a label to show only that era.
   hctx.font = "600 9.5px 'Golos Text', system-ui, sans-serif"; hctx.textBaseline = "top";
+  let pin = null;   // the selected (or current) era, if its band is too narrow for any label
   ERAS.forEach((e, i) => {
     const a = Math.max(e.from, S.minY), b = Math.min(e.to, S.maxY);
     if (b < a) return;
@@ -1130,7 +1143,16 @@ function drawHist() {
     const lines = fitLabel(e, room, two);
     hctx.fillStyle = sel ? "#ffffff" : cur ? "#cfe6bf" : "#8e98b0";
     lines.forEach((l, k) => hctx.fillText(l, x0 + 4, 2 + k * 11));
+    if (!lines.length && (sel || (cur && !S.range))) pin = { e, x0, x1, sel };
   });
+  // Narrow band (common on phones): label it anyway in a small tag centred on the band, drawn over its neighbours.
+  if (pin) {
+    const t = pin.e.short, tw = hctx.measureText(t).width, bw2 = tw + 8;
+    const lx = Math.min(Math.max((pin.x0 + pin.x1) / 2 - bw2 / 2, 0), w - bw2);
+    hctx.fillStyle = "#0b3a7a"; hctx.fillRect(lx, 0, bw2, 13);
+    hctx.strokeStyle = "rgba(118,176,83,.9)"; hctx.lineWidth = 1; hctx.strokeRect(lx + 0.5, 0.5, bw2 - 1, 12);
+    hctx.fillStyle = pin.sel ? "#ffffff" : "#cfe6bf"; hctx.fillText(t, lx + 4, 2);
+  }
   // Filter on: grey out the bars outside the chosen span
   if (S.range) {
     const a = Math.max(S.range.a, S.minY), b = Math.min(S.range.b, S.maxY);
@@ -1359,7 +1381,11 @@ addSel.addEventListener("change", () => {
 $("play").addEventListener("click", () => S.playing ? pause() : play());
 $("filterClear").addEventListener("click", () => setRange(null));
 $("filterPlay").addEventListener("click", () => { if (S.range) { setT(rangeStart()); play(); } });
-$("eraLine").addEventListener("click", e => { const b = e.target.closest("[data-era]"); if (b) setRange(rangeFor("era", +b.dataset.era)); });
+$("eraLine").addEventListener("click", e => {
+  if (e.target.closest(".era-more")) { S.noteOpen = !S.noteOpen; fitEraNote(); return; }
+  const b = e.target.closest("[data-era]"); if (b) setRange(rangeFor("era", +b.dataset.era));
+});
+addEventListener("resize", fitEraNote);
 $("decLegend").addEventListener("click", e => { const b = e.target.closest("[data-d]"); if (b) setRange(rangeFor("dec", +b.dataset.d)); });
 $("eraChips").addEventListener("click", e => { const b = e.target.closest("[data-e]"); if (b) setRange(rangeFor("era", +b.dataset.e)); });
 $("slider").addEventListener("input", e => scrubTo(+e.target.value));
