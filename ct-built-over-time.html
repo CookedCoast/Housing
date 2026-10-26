@@ -162,6 +162,12 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
 #typesChart{width:100%;height:120px;display:block;cursor:crosshair}
 .types-legend{display:grid;gap:3px;font-size:12px}
 .types-legend .r{display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:center}
+/* Each home type is a toggle: click to show only that type (or several) on the map */
+.types-legend button.r{font:inherit;color:inherit;background:none;border:1px solid transparent;border-radius:4px;padding:2px 4px;margin:0 -5px;text-align:left;cursor:pointer;min-height:0}
+.types-legend button.r:hover{border-color:var(--rule)}
+.types-legend button.r[aria-pressed="true"]{border-color:var(--brand-green);background:rgba(118,176,83,.14);color:#fff}
+.typing .types-legend button.r[aria-pressed="false"]{opacity:.5}
+.types-hint{font-size:11px;color:var(--muted);margin:-2px 0 0}
 .types-legend i{width:10px;height:10px;border-radius:2px;display:block}
 .types-legend b{font:500 12px var(--f-mono);font-variant-numeric:tabular-nums;color:var(--text)}
 .types-legend .r.zero{color:var(--muted)}
@@ -181,6 +187,7 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
   #typesChart{height:84px}
   .types-note{display:none}
   .types-legend{grid-template-columns:1fr 1fr;column-gap:12px}
+  .types-legend button.r{min-height:30px!important}
 }
 
 /* SECOG branding (colors from secogct.gov) */
@@ -315,7 +322,8 @@ h1{color:#fff}
     </div>
   </div>
   <canvas id="typesChart" tabindex="0" aria-label="Stacked area chart of parcels standing by home type, by year. Hover to read a year."></canvas>
-  <div class="types-legend" id="typesLegend"></div>
+  <div class="types-legend" id="typesLegend" role="group" aria-label="Show only these home types"></div>
+  <p class="types-hint">Click one or more types to show only those on the map.</p>
   <p class="types-note">By the assessor's land-use description. Each parcel counts once, so a condo unit counts as one but an apartment building also counts as one.</p>
 </section>
 
@@ -377,7 +385,7 @@ h1{color:#fff}
       <li><b>Focus on one decade or era.</b> Click a decade or era in the legend, an era name on the timeline, or the era caption, and the map shows only what was built then and pauses. Press <b>Play span</b> to watch just that period, or <b>Show all</b> to go back.</li>
       <li><b>Look closer.</b> Click any dot for its address, land use and living area.</li>
       <li><b>See it from the air.</b> Choose <b>Aerials</b> for historical aerial photos from 1934 to 2023, then turn on <b>Swipe to compare</b> and drag the divider to compare two years. Town and planning-region outlines can be turned on or off under Boundaries.</li>
-      <li><b>Compare home types.</b> The Home types panel tracks single family, multi-family, condos and more. Switch to <b>Share</b> to see how the mix changes.</li>
+      <li><b>Compare home types.</b> The Home types panel tracks single family, multi-family, condos and more. Switch to <b>Share</b> to see how the mix changes, or click one or more types in its legend to show only those on the map. Type and decade/era filters work together.</li>
     </ol>
 
     <h3>Trends to look for</h3>
@@ -493,9 +501,44 @@ function rangeFor(kind, i) {
   const e = ERAS[i];
   return { a: e.from <= 1600 ? MIN_VALID : e.from, b: e.to, key: "era" + i, label: `${e.name} (${eraYears(e)})` };
 }
+// Home-type filter: S.types is null (all types) or a Set of TYPES indexes.
+const sumTypes = arr => { if (!arr) return 0; let n = 0; for (const k of S.types) n += arr[k]; return n; };
+const cntY = y => S.types ? sumTypes(S.typeAdd.get(y)) : S.counts.get(y) || 0;   // built in year y
+const cumY = y => S.types ? sumTypes(S.typeCum.get(y)) : S.cum.get(y) || 0;     // standing by end of year y
+const typesLabel = () => S.types.size === 1 ? TYPES[[...S.types][0]].label : `${S.types.size} home types`;
+function setTypes(k) {
+  if (k == null) S.types = null;
+  else {
+    const t = new Set(S.types || []);
+    t.has(k) ? t.delete(k) : t.add(k);
+    S.types = t.size && t.size < TYPES.length ? t : null;   // none or all selected = no filter
+  }
+  document.body.classList.toggle("typing", !!S.types);
+  applyRangeFilter();
+  S.typesDirty = true; drawTypes();
+  updateFilterBar();
+  if (S.loaded) { S.Y = null; S.glowT = null; setT(S.t); }
+}
+// The banner in the dock describes whatever filters are on and offers Play span / Show all.
+function updateFilterBar() {
+  const r = S.range, on = !!(r || S.types);
+  $("filterBar").hidden = !on;
+  $("filterPlay").hidden = !r;
+  if (!on || !S.loaded) return;
+  const parts = [r && r.label, S.types && typesLabel()].filter(Boolean);
+  let n = 0;
+  if (r) for (let y = r.a; y <= Math.min(r.b, S.maxY); y++) n += cntY(y);
+  else n = cumY(S.maxY);
+  $("filterText").innerHTML = `<span class="pre">Showing only: </span><b>${parts.map(esc).join(" · ")}</b> <span class="n">· ${fmt(n)} parcels</span>`;
+}
 const rangeEnd = () => Math.min(S.range.b, S.maxY) + 0.999;
 const rangeStart = () => Math.max(S.range.a, S.minY);
-function rangeFilter() { return S.range ? ["all", [">=", ["get", "y"], S.range.a], ["<=", ["get", "y"], S.range.b]] : null; }
+function rangeFilter() {
+  const c = [];
+  if (S.range) c.push([">=", ["get", "y"], S.range.a], ["<=", ["get", "y"], S.range.b]);
+  if (S.types) c.push(["in", ["get", "k"], ["literal", [...S.types]]]);
+  return c.length ? ["all", ...c] : null;
+}
 function applyRangeFilter() {
   const f = rangeFilter();
   for (const id of ["parcels-pts", "glow-halo"]) if (map.getLayer(id)) map.setFilter(id, f);
@@ -507,12 +550,10 @@ function setRange(r) {
   document.querySelectorAll("#decLegend button").forEach(b => b.setAttribute("aria-pressed", !!r && r.key === "dec" + b.dataset.d));
   document.querySelectorAll("#eraChips button").forEach(b => b.setAttribute("aria-pressed", !!r && r.key === "era" + b.dataset.e));
   applyRangeFilter();
-  $("filterBar").hidden = !r;
+  updateFilterBar();
   if (!S.loaded) return;
   pause();
   if (r) {
-    let n = 0; for (let y = r.a; y <= Math.min(r.b, S.maxY); y++) n += S.counts.get(y) || 0;
-    $("filterText").innerHTML = `<span class="pre">Showing only: </span><b>${esc(r.label)}</b> <span class="n">· ${fmt(n)} parcels</span>`;
     // Jump to the end of the span so every parcel in it is on the map, settled into its decade color
     S.Y = null; setT(rangeEnd()); clearGlow();
   } else {
@@ -996,6 +1037,7 @@ function ingest(pts) {
     const a = add.get(y); if (a) for (let k = 0; k < TYPES.length; k++) runT[k] += a[k];
     S.typeCum.set(y, runT.slice());
   }
+  S.typeAdd = add;
   S.typesDirty = true;
 
   S.pts = pts;
@@ -1012,6 +1054,7 @@ function ingest(pts) {
   const sl = $("slider");
   sl.min = S.minY; sl.max = S.maxY;
   S.loaded = true; S.Y = null; S.glowT = null;
+  updateFilterBar();
   setT(S.minY);
 }
 
@@ -1048,9 +1091,9 @@ function setT(t) {
     $("year").textContent = Y;
     // With a filter on, count only parcels in that span so the number matches the map
     $("nCum").textContent = fmt(S.range
-      ? Math.max(0, (S.cum.get(Math.min(Y, S.range.b, S.maxY)) || 0) - (S.cum.get(S.range.a - 1) || 0))
-      : S.cum.get(Y) || 0);
-    $("nYear").textContent = fmt(S.range && (Y < S.range.a || Y > S.range.b) ? 0 : S.counts.get(Y) || 0);
+      ? Math.max(0, cumY(Math.min(Y, S.range.b, S.maxY)) - cumY(S.range.a - 1))
+      : cumY(Y));
+    $("nYear").textContent = fmt(S.range && (Y < S.range.a || Y > S.range.b) ? 0 : cntY(Y));
     updateEraLine(Y);
     $("slider").value = Y;
   }
@@ -1181,7 +1224,13 @@ function drawHist() {
   for (let y = S.minY; y <= S.maxY; y++) {
     const c = S.counts.get(y) || 0;
     if (!c) continue;
-    const bh = Math.max(1, Math.sqrt(c / S.maxCount) * ph);
+    let bh = Math.max(1, Math.sqrt(c / S.maxCount) * ph);
+    const bx = x(y), bwid = Math.max(bw - (bw > 3 ? 1 : 0), 0.8);
+    if (S.types) {
+      hctx.fillStyle = "rgba(142,152,176,.12)"; hctx.fillRect(bx, top + ph - bh, bwid, bh);
+      const cs = cntY(y); if (!cs) continue;
+      bh = Math.max(1, Math.sqrt(cs / S.maxCount) * ph);
+    }
     const age = S.t - y;
     if (S.range && (y < S.range.a || y > S.range.b)) { hctx.fillStyle = "rgba(142,152,176,.12)"; }
     else if (age < 0) { hctx.fillStyle = "rgba(142,152,176,.22)"; }
@@ -1189,7 +1238,7 @@ function drawHist() {
       const a = 1 - age / S.fade;
       hctx.fillStyle = `rgba(255,${Math.round(150 + 90 * a)},${Math.round(70 + 130 * a * a)},${0.45 + 0.55 * a})`;
     } else hctx.fillStyle = eraColor(y);
-    hctx.fillRect(x(y), top + ph - bh, Math.max(bw - (bw > 3 ? 1 : 0), 0.8), bh);
+    hctx.fillRect(bx, top + ph - bh, bwid, bh);
   }
 
   const px = x(S.t);
@@ -1312,7 +1361,7 @@ function buildTypesBase() {
       y === S.minY ? c.moveTo(x(y), yPx(top)) : c.lineTo(x(y), yPx(top));
     }
     for (let y = S.maxY; y >= S.minY; y--) c.lineTo(x(y), yPx(base.get(y)));
-    c.closePath(); c.fillStyle = t.color; c.fill();
+    c.closePath(); c.fillStyle = t.color; c.globalAlpha = S.types && !S.types.has(k) ? 0.25 : 1; c.fill(); c.globalAlpha = 1;
     c.strokeStyle = "rgba(7,38,92,.9)"; c.lineWidth = 1; c.stroke();
     for (let y = S.minY; y <= S.maxY; y++) { const T = tot(y) || 1; base.set(y, base.get(y) + S.typeCum.get(y)[k] / (share ? T : 1)); }
   });
@@ -1338,7 +1387,7 @@ function drawTypes() {
   const v = S.typeCum.get(Y) || TYPES.map(() => 0), T = v.reduce((a, b) => a + b, 0) || 1;
   $("typesSub").textContent = `Parcels standing in ${Y}${S.typesHover != null ? " (hover)" : ""}`;
   $("typesLegend").innerHTML = TYPES.map((t, k) => ({ t, k })).reverse().map(({ t, k }) =>
-    `<div class="r${v[k] ? "" : " zero"}"><i style="background:${t.color}"></i><span>${t.label}</span><b>${S.typesMode === "share" ? (v[k] / T * 100).toFixed(1) + "%" : fmt(v[k])}</b></div>`).join("");
+    `<button type="button" class="r${v[k] ? "" : " zero"}" data-k="${k}" aria-pressed="${!!S.types && S.types.has(k)}" title="Show only ${esc(t.label.toLowerCase())} (click more to add)"><i style="background:${t.color}"></i><span>${t.label}</span><b>${S.typesMode === "share" ? (v[k] / T * 100).toFixed(1) + "%" : fmt(v[k])}</b></button>`).join("");
 }
 function typesYear(clientX) {
   const r = tc.getBoundingClientRect(), n = S.maxY - S.minY + 1;
@@ -1379,7 +1428,12 @@ addSel.addEventListener("change", () => {
   loadAreas([...cur, a]);
 });
 $("play").addEventListener("click", () => S.playing ? pause() : play());
-$("filterClear").addEventListener("click", () => setRange(null));
+$("filterClear").addEventListener("click", () => { if (S.types) setTypes(null); setRange(null); });
+$("typesLegend").addEventListener("click", e => {
+  const b = e.target.closest("[data-k]"); if (!b) return;
+  const k = +b.dataset.k; setTypes(k);
+  $("typesLegend").querySelector(`[data-k="${k}"]`)?.focus();   // the legend re-renders; keep keyboard focus on the same type
+});
 $("filterPlay").addEventListener("click", () => { if (S.range) { setT(rangeStart()); play(); } });
 $("eraLine").addEventListener("click", e => {
   if (e.target.closest(".era-more")) { S.noteOpen = !S.noteOpen; fitEraNote(); return; }
