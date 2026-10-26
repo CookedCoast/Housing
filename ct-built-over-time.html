@@ -34,7 +34,8 @@ html,body{height:100%;margin:0;background:var(--night);color:var(--text);font:14
 .card{
   position:fixed;top:calc(16px + env(safe-area-inset-top,0px));left:calc(16px + env(safe-area-inset-left,0px));
   width:min(340px,calc(100vw - 32px));background:var(--panel);backdrop-filter:blur(8px);
-  border:1px solid var(--rule);border-radius:10px;padding:16px;display:grid;gap:12px;z-index:2
+  border:1px solid var(--rule);border-radius:10px;padding:16px;display:grid;gap:12px;z-index:2;
+  max-height:calc(100dvh - var(--dock-h,240px) - 32px);overflow-y:auto;overscroll-behavior:contain
 }
 .eyebrow{font:500 11px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0}
 h1{font:800 30px/0.95 var(--f-display);letter-spacing:.01em;margin:0;text-transform:uppercase;text-wrap:balance;letter-spacing:0}
@@ -60,6 +61,45 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
 .ramp.glow{background:linear-gradient(90deg,var(--flash),#ffd166 20%,#ff7a45 60%,rgba(194,65,12,0))}
 .dec-legend{display:grid;grid-template-columns:repeat(7,1fr);gap:4px 2px;font:10px/1.2 var(--f-mono)}
 .dec-legend span{display:block;height:10px;border-radius:2px;margin-bottom:2px}
+/* Decade and era filters: each legend item is a toggle button */
+.dec-legend button,.era-chips button{font:inherit;color:inherit;background:none;border:1px solid transparent;border-radius:4px;cursor:pointer;min-height:0}
+.dec-legend button{padding:2px 2px 1px;text-align:left}
+.dec-legend button:hover,.era-chips button:hover{border-color:var(--rule);color:#fff}
+.dec-legend button[aria-pressed="true"],.era-chips button[aria-pressed="true"]{border-color:var(--brand-green);color:#fff;background:rgba(118,176,83,.14)}
+.filtering .dec-legend button[aria-pressed="false"],.filtering .era-chips button[aria-pressed="false"]{opacity:.5}
+.era-chips{display:flex;flex-wrap:wrap;gap:4px}
+.era-chips button{font:500 11.5px/1.2 var(--f-body);padding:3px 7px;border-color:var(--rule);border-radius:999px;background:#0d3170}
+.legend-hint{font-size:11px;color:var(--muted)}
+.bounds-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.bounds-row label,.aerial-row label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+.bounds-row input,.aerial-row input{accent-color:var(--brand-green);margin:0}
+.aerial-row{display:grid;gap:6px;font-size:12px;color:var(--muted);padding:8px 10px;border:1px solid var(--rule);border-radius:8px;background:rgba(13,49,112,.5)}
+.aerial-row[hidden]{display:none}
+.aerial-row .r{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.aerial-row select{flex:none;padding:4px 6px;font-size:12px}
+.aerial-row select:disabled{opacity:.45;cursor:default}
+.aerial-row .hint{margin:0;font-size:11px;line-height:1.35}
+.aerial-row a{color:#cfe6bf}
+/* Swipe compare: a second map clipped to the right of the divider */
+#map2{position:absolute;inset:0;pointer-events:none}
+.swipe{position:absolute;top:0;bottom:0;width:0;z-index:1}
+.swipe::before{content:"";position:absolute;top:0;bottom:0;left:-1.5px;width:3px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.swipe-grip{position:absolute;top:50%;left:0;transform:translate(-50%,-50%);display:flex;align-items:center;gap:6px;
+  padding:6px 10px;border-radius:999px;background:#07265c;border:2px solid #fff;color:#fff;font:600 12px var(--f-mono);
+  cursor:ew-resize;touch-action:none;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.4);min-height:0}
+.swipe-grip i{font-style:normal;color:var(--brand-green)}
+/* Filter banner in the dock */
+.filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--text);
+  padding:5px 6px 5px 10px;border:1px solid var(--brand-green);border-radius:8px;background:rgba(118,176,83,.14)}
+.filter-bar[hidden]{display:none}
+.filter-bar .ft{flex:1;min-width:0}
+.filter-bar .ft .n{font:11.5px var(--f-mono);color:var(--muted)}
+.filter-bar button{padding:4px 9px;font-size:12px}
+@media (max-width:640px){
+  .filter-bar{gap:6px;padding:4px 4px 4px 8px;font-size:12px}
+  .filter-bar .pre,.filter-bar .ft .n{display:none}
+  .filter-bar button{min-height:32px;padding:3px 8px}
+}
 .ramp-labels{display:flex;justify-content:space-between;font:11px var(--f-mono)}
 .note{font-size:12px;color:var(--muted);margin:0}
 
@@ -75,12 +115,21 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
 .stats{font:12px/1.5 var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
 .stats b{color:var(--text);font-weight:500}
 .timeline{display:grid;gap:8px;min-width:0}
-#hist{width:100%;height:84px;display:block;cursor:ew-resize;touch-action:none}
-.era-line{font-size:12.5px;line-height:1.35;color:var(--muted);min-height:1.35em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.era-line b{color:var(--text);font-weight:600}
+#hist{width:100%;height:92px;display:block;cursor:ew-resize;touch-action:none}
+/* Era caption: name + years on one line, the description stacked underneath and allowed to wrap */
+.era-line{font-size:12.5px;line-height:1.35;color:var(--muted);min-height:2.7em;display:grid;gap:1px;align-content:end}
+.era-head{display:flex;align-items:baseline;gap:4px 8px;flex-wrap:wrap}
+.era-name{font:600 12.5px/1.35 var(--f-body);color:var(--text);background:none;border:0;padding:0;min-height:0;cursor:pointer;text-align:left;
+  text-decoration:underline dotted rgba(255,255,255,.35);text-underline-offset:3px}
+.era-name:hover{text-decoration-color:var(--brand-green)}
 .era-line .yrs{font:11px var(--f-mono);color:var(--muted)}
 .era-line .evt{color:var(--ember);font-weight:600}
-@media (max-width:640px){ .era-line{font-size:11.5px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical} }
+.era-note{text-wrap:pretty}
+@media (max-width:640px){
+  .era-line{font-size:11.5px;min-height:0}
+  .era-name{font-size:12px}
+  .era-note{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+}
 #slider{width:100%;accent-color:var(--brand-green);margin:0}
 .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
 .controls label{display:flex;gap:6px;align-items:center}
@@ -91,7 +140,7 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
 .maplibregl-popup-tip{border-top-color:#07265c!important;border-bottom-color:#07265c!important}
 .maplibregl-popup-close-button{color:var(--muted)}
 .pop-y{font:800 26px/1 var(--f-display);color:var(--ember)}
-.maplibregl-ctrl-bottom-right{bottom:150px}
+.maplibregl-ctrl-bottom-right{bottom:calc(var(--dock-h,240px) + 4px)}
 .types{
   position:fixed;top:calc(16px + env(safe-area-inset-top,0px));right:calc(16px + env(safe-area-inset-right,0px));z-index:2;
   width:300px;background:var(--panel);backdrop-filter:blur(8px);border:1px solid var(--rule);border-radius:10px;
@@ -122,8 +171,7 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
   .readout{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
   #year{font-size:48px}
   #hist{height:64px}
-  .maplibregl-ctrl-bottom-right{bottom:220px}
-  .types{top:auto;bottom:calc(196px + env(safe-area-inset-bottom,0px));left:8px;right:8px;width:auto;padding:10px 12px;gap:6px}
+  .types{top:auto;bottom:calc(var(--dock-h,240px) + 8px);left:8px;right:8px;width:auto;padding:10px 12px;gap:6px}
   #typesChart{height:84px}
   .types-note{display:none}
   .types-legend{grid-template-columns:1fr 1fr;column-gap:12px}
@@ -170,7 +218,7 @@ h1{color:#fff}
   .brand{padding:4px 8px}
   .brand svg{height:18px}
   .info-btn{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px}
-  .card.open{max-height:calc(100dvh - 230px);overflow-y:auto}
+  .card.open{max-height:calc(100dvh - var(--dock-h,240px) - 16px);overflow-y:auto}
   .card.open .legend{display:grid}
   .card.open .note,.card.open .cite{display:block}
   .card.open .check{display:flex}
@@ -185,7 +233,6 @@ h1{color:#fff}
   .controls label{gap:4px}
   .controls select{padding:4px 4px;min-height:34px}
   #play{min-width:76px;min-height:34px}
-  .maplibregl-ctrl-bottom-right{bottom:180px}
 }
 @media (max-height:500px) and (orientation:landscape){
   .card{width:min(300px,45vw);max-height:calc(100dvh - 120px);overflow-y:auto}
@@ -195,7 +242,6 @@ h1{color:#fff}
   .dock{grid-template-columns:auto 1fr;padding-block:6px calc(6px + env(safe-area-inset-bottom,0px))}
   #hist{display:none}
   #year{font-size:32px}
-  .maplibregl-ctrl-bottom-right{bottom:100px}
 }
 </style>
 </head>
@@ -216,18 +262,37 @@ h1{color:#fff}
   <div class="basemap-row">
     <span>Basemap</span>
     <div class="seg" id="basemapSeg" role="group" aria-label="Basemap">
-      <button type="button" data-b="light" aria-pressed="true">Light grey</button>
-      <button type="button" data-b="dark" aria-pressed="false">Dark grey</button>
+      <button type="button" data-b="light" aria-pressed="true">Light</button>
+      <button type="button" data-b="dark" aria-pressed="false">Dark</button>
       <button type="button" data-b="imagery" aria-pressed="false">Imagery</button>
+      <button type="button" data-b="aerial" aria-pressed="false" title="Historical aerial photos from CT ECO, 1934 to 2023">Aerials</button>
     </div>
+  </div>
+  <div class="aerial-row" id="aerialRow" hidden>
+    <div class="r">
+      <label for="aerialA">Aerial year</label>
+      <select id="aerialA" aria-label="Aerial photo year"></select>
+    </div>
+    <div class="r">
+      <label><input type="checkbox" id="swipeOn"> Swipe to compare with</label>
+      <select id="aerialB" aria-label="Aerial photo year to compare" disabled></select>
+    </div>
+    <p class="hint">Aerial photos from <a href="https://cteco.uconn.edu" target="_blank" rel="noopener">CT ECO</a> (UConn CLEAR &amp; CT DEEP). Zoom in for detail; older years can take a moment to load.</p>
+  </div>
+  <div class="bounds-row" role="group" aria-label="Boundaries">
+    <span>Boundaries</span>
+    <label><input type="checkbox" id="showTowns" checked> Towns</label>
+    <label><input type="checkbox" id="showRegions" checked> Planning regions</label>
   </div>
   <div id="status" role="status">Starting…</div>
   <div class="legend">
     <div>Just built</div>
     <div class="ramp glow"></div>
     <div class="ramp-labels"><span>this year</span><span id="fadeLbl">+6 yrs</span></div>
-    <div>Decade built</div>
-    <div class="dec-legend" id="decLegend"></div>
+    <div>Decade built <span class="legend-hint">· click one to show only it</span></div>
+    <div class="dec-legend" id="decLegend" role="group" aria-label="Show only one decade"></div>
+    <div>Era <span class="legend-hint">· click one to show only it</span></div>
+    <div class="era-chips" id="eraChips" role="group" aria-label="Show only one era"></div>
   </div>
   <p class="note">AYB only describes buildings standing today, so demolished structures never appear and teardowns show up as new. Assessors often round older build years, which causes spikes at 1900, 1920, 1950.</p>
 </section>
@@ -254,6 +319,11 @@ h1{color:#fff}
     <div class="stats">Built this year <b id="nYear">0</b><br>Standing, built by now <b id="nCum">0</b></div>
   </div>
   <div class="timeline">
+    <div class="filter-bar" id="filterBar" hidden>
+      <div class="ft" id="filterText" aria-live="polite"></div>
+      <button type="button" id="filterPlay">▶ Play span</button>
+      <button type="button" id="filterClear">Show all ×</button>
+    </div>
     <div class="era-line" id="eraLine" aria-live="polite"></div>
     <canvas id="hist" tabindex="0" aria-label="Buildings per year, with shaded eras of Connecticut housing history. Click or drag to jump to a year."></canvas>
     <input id="slider" type="range" min="1700" max="2026" step="1" value="1700" aria-label="Year">
@@ -298,7 +368,9 @@ h1{color:#fff}
     <ol class="steps">
       <li><b>Pick a place.</b> Choose a town or one of the nine planning regions and the map loads it. Use <b>+ Add another…</b> to put several towns or regions on the map together, and the × on each tag to remove one.</li>
       <li><b>Move through time.</b> Press <b>Play</b>, or drag the slider or the bar chart along the bottom to jump to any year. New buildings flash orange, then settle into their decade color. Shaded bands on the timeline mark key eras in Connecticut housing, orange markers flag turning points, and a caption explains what was happening.</li>
+      <li><b>Focus on one decade or era.</b> Click a decade or era in the legend, an era name on the timeline, or the era caption, and the map shows only what was built then and pauses. Press <b>Play this span</b> to watch just that period, or <b>Show all</b> to go back.</li>
       <li><b>Look closer.</b> Click any dot for its address, land use and living area.</li>
+      <li><b>See it from the air.</b> Choose <b>Aerials</b> for historical aerial photos from 1934 to 2023, then turn on <b>Swipe to compare</b> and drag the divider to compare two years. Town and planning-region outlines can be turned on or off under Boundaries.</li>
       <li><b>Compare home types.</b> The Home types panel tracks single family, multi-family, condos and more. Switch to <b>Share</b> to see how the mix changes.</li>
     </ol>
 
@@ -369,7 +441,7 @@ function classifyUse(desc) {
 const ERAS = [
   { from: 1600, to: 1819, name: "Colonial & farm towns", short: "Colonial", note: "Village greens, farmhouses and seaports; most people farm." },
   { from: 1820, to: 1889, name: "Industrial era", short: "Industrial", note: "Water-powered mills and factories pull workers into river towns and cities." },
-  { from: 1890, to: 1929, name: "Streetcar & three-decker era", short: "Streetcar", note: "Trolley lines extend the city; two- and three-family houses fill in around factories and downtowns." },
+  { from: 1890, to: 1929, name: "Streetcar & three-decker era", short: "Streetcar", note: "Trolley lines stretch cities outward. Factory neighborhoods fill with two-family houses and three-deckers: three-story wood houses with one apartment per floor, built for immigrant mill and factory workers." },
   { from: 1930, to: 1945, name: "Depression & war", short: "Depr./war", note: "Building collapses in the Depression; war industry brings emergency housing near shipyards and plants." },
   { from: 1946, to: 1973, name: "Postwar suburban boom", short: "Postwar boom", note: "GI Bill and FHA mortgages, cars and new highways fuel single-family subdivisions on former farmland." },
   { from: 1974, to: 1990, name: "Condos & late suburbs", short: "Condos", note: "Rising land and energy costs bring condos and townhouses; the 1980s boom ends in a sharp early-1990s bust." },
@@ -384,13 +456,50 @@ const EVENTS = [
   { y: 2008, text: "Housing crash and Great Recession" }
 ];
 const eraOf = y => ERAS.find(e => y >= e.from && y <= e.to) || ERAS[0];
+const eraYears = e => e.from <= 1600 ? "before 1820" : e.to >= 9999 ? e.from + "–now" : e.from + "–" + e.to;
+// Two stacked lines: era name + years (and any turning point), then the description, which wraps instead of being cut off.
 function updateEraLine(Y) {
-  const e = eraOf(Y), ev = EVENTS.filter(v => Y >= v.y && Y - v.y <= 3).pop();
-  const yrs = `${e.from <= 1600 ? "before 1820" : e.to >= 9999 ? e.from + "–now" : e.from + "–" + e.to}`;
-  $("eraLine").innerHTML = ev
-    ? `<span class="evt">${ev.y}: ${esc(ev.text)}</span> · <b>${esc(e.name)}</b>`
-    : `<b>${esc(e.name)}</b> <span class="yrs">${yrs}</span> · ${esc(e.note)}`;
-  $("eraLine").title = `${e.name} (${yrs}): ${e.note}`;
+  const e = eraOf(Y), i = ERAS.indexOf(e), ev = EVENTS.filter(v => Y >= v.y && Y - v.y <= 3).pop();
+  const yrs = eraYears(e);
+  $("eraLine").innerHTML =
+    `<div class="era-head"><button type="button" class="era-name" data-era="${i}" title="Show only the ${esc(e.name)}">${esc(e.name)}</button>` +
+    `<span class="yrs">${yrs}</span>${ev ? `<span class="evt">${ev.y}: ${esc(ev.text)}</span>` : ""}</div>` +
+    `<div class="era-note">${esc(e.note)}</div>`;
+}
+
+// ---------- Decade / era filter ----------
+// S.range = { a, b, key, label } shows only parcels built a..b; the timeline pauses at the end of that span.
+const decRange = i => i === 0 ? { a: MIN_VALID, b: 1899 } : { a: 1890 + i * 10, b: i === DEC_LABELS.length - 1 ? 9999 : 1899 + i * 10 };
+function rangeFor(kind, i) {
+  if (kind === "dec") { const r = decRange(i); return { ...r, key: "dec" + i, label: DEC_LABELS[i] === "<1900" ? "Built before 1900" : `Built in the ${DEC_LABELS[i]}` }; }
+  const e = ERAS[i];
+  return { a: e.from <= 1600 ? MIN_VALID : e.from, b: e.to, key: "era" + i, label: `${e.name} (${eraYears(e)})` };
+}
+const rangeEnd = () => Math.min(S.range.b, S.maxY) + 0.999;
+const rangeStart = () => Math.max(S.range.a, S.minY);
+function rangeFilter() { return S.range ? ["all", [">=", ["get", "y"], S.range.a], ["<=", ["get", "y"], S.range.b]] : null; }
+function applyRangeFilter() {
+  const f = rangeFilter();
+  for (const id of ["parcels-pts", "glow-halo"]) if (map.getLayer(id)) map.setFilter(id, f);
+}
+function setRange(r) {
+  if (r && S.range && r.key === S.range.key) r = null;     // clicking the active filter again clears it
+  S.range = r;
+  document.body.classList.toggle("filtering", !!r);
+  document.querySelectorAll("#decLegend button").forEach(b => b.setAttribute("aria-pressed", !!r && r.key === "dec" + b.dataset.d));
+  document.querySelectorAll("#eraChips button").forEach(b => b.setAttribute("aria-pressed", !!r && r.key === "era" + b.dataset.e));
+  applyRangeFilter();
+  $("filterBar").hidden = !r;
+  if (!S.loaded) return;
+  pause();
+  if (r) {
+    let n = 0; for (let y = r.a; y <= Math.min(r.b, S.maxY); y++) n += S.counts.get(y) || 0;
+    $("filterText").innerHTML = `<span class="pre">Showing only: </span><b>${esc(r.label)}</b> <span class="n">· ${fmt(n)} parcels</span>`;
+    // Jump to the end of the span so every parcel in it is on the map, settled into its decade color
+    S.Y = null; setT(rangeEnd()); clearGlow();
+  } else {
+    S.Y = null; S.glowT = null; setT(S.t);
+  }
 }
 const decStep = () => ["step", ["get", "y"], DEC_COLORS[0], ...DEC_COLORS.slice(1).flatMap((c, i) => [1900 + i * 10, c])];
 
@@ -414,30 +523,91 @@ const BASEMAPS = {
       { id: "imagery", type: "raster", source: "img", paint: { "raster-saturation": -1, "raster-contrast": 0.1, "raster-brightness-max": 0.72 } },
       { id: "ref-labels", type: "raster", source: "lbl", paint: { "raster-saturation": -1 } }
     ]
-  } }
+  } },
+  // Historical aerials from CT ECO; the year is picked in the panel (see AERIALS)
+  aerial: { palette: "dark", style: () => aerialStyle(S.aerialA) }
 };
+const styleOf = key => typeof BASEMAPS[key].style === "function" ? BASEMAPS[key].style() : BASEMAPS[key].style;
+
+// ---------- Historical aerials (CT ECO image services, UConn CLEAR & CT DEEP) ----------
+const CTECO = "https://cteco.uconn.edu/ctraster/rest/services/images/";
+// Statewide years. "tiled" services have a web-mercator tile cache (fast); the rest are drawn on request with exportImage.
+const AERIALS = [
+  { y: "1934", label: "1934 · black & white", svc: "Historic_1934" },
+  { y: "1990", label: "1990 · black & white", svc: "Ortho_1990" },
+  { y: "2004", label: "2004", svc: "Ortho_2004" },
+  { y: "2006", label: "2006 · NAIP", svc: "NAIP_2006" },
+  { y: "2008", label: "2008 · NAIP", svc: "NAIP_2008" },
+  { y: "2010", label: "2010 · NAIP", svc: "NAIP_2010" },
+  { y: "2012", label: "2012", svc: "Ortho_2012_tiled", tiled: true },
+  { y: "2014", label: "2014 · NAIP", svc: "NAIP_2014" },
+  { y: "2016", label: "2016", svc: "Ortho_2016_tiled", tiled: true },
+  { y: "2018", label: "2018 · NAIP", svc: "NAIP_2018" },
+  { y: "2019", label: "2019", svc: "Ortho_2019_tiled", tiled: true },
+  { y: "2021", label: "2021 · NAIP", svc: "NAIP_2021" },
+  { y: "2023", label: "2023", svc: "Ortho_2023_tiled", tiled: true }
+];
+const aerialOf = y => AERIALS.find(a => a.y === y) || AERIALS[0];
+const GLYPHS = "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf";
+function aerialSource(y) {
+  const a = aerialOf(y), base = CTECO + a.svc + "/ImageServer";
+  return {
+    type: "raster", tileSize: 256, maxzoom: 20,
+    tiles: [a.tiled ? base + "/tile/{z}/{y}/{x}"
+                    : base + "/exportImage?bbox={bbox-epsg-3857}&bboxSR=3857&imageSR=3857&size=256,256&format=jpgpng&transparent=true&f=image"],
+    attribution: `Aerials ${a.y}: <a href="https://cteco.uconn.edu" target="_blank" rel="noopener">CT ECO</a> (UConn CLEAR, CT DEEP)`
+  };
+}
+// Slightly dimmed so the parcel points stay readable on top
+const AERIAL_PAINT = { "raster-saturation": -0.15, "raster-brightness-max": 0.82 };
+function aerialStyle(y) {
+  return {
+    version: 8, glyphs: GLYPHS,
+    sources: { aerial: aerialSource(y) },
+    layers: [
+      { id: "bg", type: "background", paint: { "background-color": "#1d1d1d" } },
+      { id: "aerial", type: "raster", source: "aerial", paint: AERIAL_PAINT }
+    ]
+  };
+}
+BASEMAPS.imagery.style.glyphs = GLYPHS;
+
 const BASEMAP_KEY = "ctBuiltOverTime.basemap";
 let startBasemap = new URLSearchParams(location.search).get("basemap");
 if (!BASEMAPS[startBasemap]) { try { startBasemap = localStorage.getItem(BASEMAP_KEY); } catch (e) {} }
 if (!BASEMAPS[startBasemap]) startBasemap = "light";
 DEC_COLORS = PALETTES[BASEMAPS[startBasemap].palette];
 
+// ---------- Town and planning-region boundaries (CT GIS Office) ----------
+const TOWN_SVC = "https://services3.arcgis.com/3FL1kr7L4LvwA2Kb/arcgis/rest/services/Connecticut_Municipalities/FeatureServer/0";
+const REGION_SVC = "https://services3.arcgis.com/3FL1kr7L4LvwA2Kb/arcgis/rest/services/CT_Planning_Regions/FeatureServer/0";
+const BOUNDS_KEY = "ctBuiltOverTime.bounds";
+
 const $ = id => document.getElementById(id);
 const fmt = n => n.toLocaleString("en-US");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const setStatus = (msg, err=false) => { const s=$("status"); s.textContent = msg; s.classList.toggle("err", err); };
+// The dock's height changes (wrapped captions, the filter banner), so panels and map controls position off a measured --dock-h.
+const dockH = () => document.querySelector(".dock").offsetHeight;
+new ResizeObserver(() => document.documentElement.style.setProperty("--dock-h", dockH() + "px")).observe(document.querySelector(".dock"));
 
 const S = {
   t: null, Y: null, playing: false, speed: 3, fade: 6,
   minY: 1700, maxY: MAX_YEAR,
   ptsByYear: new Map(), areas: [],
-  counts: new Map(), cum: new Map(), maxCount: 1, loaded: false
+  counts: new Map(), cum: new Map(), maxCount: 1, loaded: false,
+  range: null, aerialA: "1934", aerialB: "2023", bounds: null,
+  showTowns: true, showRegions: true
 };
+try {
+  const b = JSON.parse(localStorage.getItem(BOUNDS_KEY) || "null");
+  if (b) { S.showTowns = b.towns !== false; S.showRegions = b.regions !== false; }
+} catch (e) {}
 
 // ---------- Map ----------
 const map = new maplibregl.Map({
   container: "map",
-  style: BASEMAPS[startBasemap].style,
+  style: styleOf(startBasemap),
   bounds: [[-73.73, 40.98], [-71.78, 42.05]],
   fitBoundsOptions: { padding: 40 },
   attributionControl: { compact: true }
@@ -472,6 +642,8 @@ function addLayers() {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 1.4, 11, 2.4, 14, 4.5, 17, 8]
     }
   }, before);
+  applyRangeFilter();
+  addBoundaryLayers(map, "glow-halo");
 
   S.mapReady = true;
   if (S.pendingPts) { const p = S.pendingPts; S.pendingPts = null; ingest(p); if (!S.splashOpen) play(); else S.playOnClose = true; return; }
@@ -484,13 +656,153 @@ function setBasemap(key) {
   S.basemap = key;
   try { localStorage.setItem(BASEMAP_KEY, key); } catch (e) {}
   document.querySelectorAll("#basemapSeg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.b === key));
+  $("aerialRow").hidden = key !== "aerial";
+  if (key !== "aerial") setSwipe(false);
   DEC_COLORS = PALETTES[BASEMAPS[key].palette];
   renderDecLegend();
   drawHist();
   S.mapReady = false;
   map.once("style.load", addLayers);
-  map.setStyle(BASEMAPS[key].style, { diff: false });
+  map.setStyle(styleOf(key), { diff: false });
 }
+
+// ---------- Boundaries ----------
+// Loaded once (generalized, as GeoJSON), then drawn as outlines under the parcel points on every basemap.
+async function loadBoundaries() {
+  const get = (svc, fields) => fetch(svc + "/query?" + new URLSearchParams({
+    where: "1=1", outFields: fields, outSR: 4326, f: "geojson", geometryPrecision: 5, maxAllowableOffset: 0.0001
+  })).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });
+  try {
+    const [towns, regions] = await Promise.all([get(TOWN_SVC, "TOWN"), get(REGION_SVC, "PlanningRegion")]);
+    // One label point per town, at the centroid of its largest ring
+    const townPts = { type: "FeatureCollection", features: (towns.features || []).map(f => {
+      const polys = f.geometry.type === "Polygon" ? [f.geometry.coordinates] : f.geometry.coordinates;
+      let best = null, bestA = -1;
+      for (const p of polys) {
+        const r = p[0]; let A = 0, cx = 0, cy = 0;
+        for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+          const c = r[j][0] * r[i][1] - r[i][0] * r[j][1];
+          A += c; cx += (r[j][0] + r[i][0]) * c; cy += (r[j][1] + r[i][1]) * c;
+        }
+        if (Math.abs(A) > bestA) { bestA = Math.abs(A); best = A ? [cx / (3 * A), cy / (3 * A)] : r[0]; }
+      }
+      return { type: "Feature", geometry: { type: "Point", coordinates: best }, properties: { name: f.properties.TOWN } };
+    }) };
+    S.bounds = { towns, regions, townPts };
+    if (S.mapReady) addBoundaryLayers(map, "glow-halo");
+    if (map2 && map2.isStyleLoaded()) addBoundaryLayers(map2);
+  } catch (e) { console.warn("Couldn't load boundaries", e); }
+}
+function boundaryColors(m) {
+  const light = m === map && BASEMAPS[S.basemap].palette === "light";
+  return light
+    ? { town: "rgba(32,50,110,.38)", region: "#20326e", halo: "rgba(255,255,255,.85)", label: "#20326e" }
+    : { town: "rgba(255,255,255,.4)", region: "rgba(255,255,255,.9)", halo: "rgba(7,20,50,.85)", label: "#f2f5fb" };
+}
+function boundaryFont(m) {
+  // Reuse a font the basemap already serves; our own styles use the MapLibre demo glyphs.
+  const sym = m.getStyle().layers.find(l => l.type === "symbol" && l.layout && Array.isArray(l.layout["text-font"]));
+  return sym ? sym.layout["text-font"] : ["Open Sans Semibold"];
+}
+function addBoundaryLayers(m, before) {
+  if (!S.bounds || m.getSource("towns")) return;
+  const c = boundaryColors(m);
+  m.addSource("towns", { type: "geojson", data: S.bounds.towns });
+  m.addSource("regions", { type: "geojson", data: S.bounds.regions });
+  m.addSource("town-pts", { type: "geojson", data: S.bounds.townPts });
+  const vis = on => on ? "visible" : "none";
+  m.addLayer({ id: "town-lines", type: "line", source: "towns", layout: { visibility: vis(S.showTowns), "line-join": "round" },
+    paint: { "line-color": c.town, "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.5, 11, 1.2, 15, 2] } }, m.getLayer(before) ? before : undefined);
+  m.addLayer({ id: "region-casing", type: "line", source: "regions", layout: { visibility: vis(S.showRegions), "line-join": "round" },
+    paint: { "line-color": c.halo, "line-opacity": 0.5, "line-width": ["interpolate", ["linear"], ["zoom"], 7, 3.5, 12, 6] } }, m.getLayer(before) ? before : undefined);
+  m.addLayer({ id: "region-lines", type: "line", source: "regions", layout: { visibility: vis(S.showRegions), "line-join": "round" },
+    paint: { "line-color": c.region, "line-width": ["interpolate", ["linear"], ["zoom"], 7, 1.5, 12, 2.6] } }, m.getLayer(before) ? before : undefined);
+  m.addLayer({ id: "town-labels", type: "symbol", source: "town-pts", minzoom: 9.5,
+    layout: { visibility: vis(S.showTowns), "text-field": ["get", "name"], "text-font": boundaryFont(m),
+      "text-size": ["interpolate", ["linear"], ["zoom"], 9.5, 11, 13, 14], "text-transform": "uppercase", "text-letter-spacing": 0.08,
+      "text-max-width": 8, "text-padding": 6 },
+    paint: { "text-color": c.label, "text-halo-color": c.halo, "text-halo-width": 1.6, "text-opacity": 0.9 } });
+}
+function setBoundaryVisibility() {
+  for (const m of [map, map2]) {
+    if (!m || !m.getLayer || !m.getLayer("town-lines")) continue;
+    m.setLayoutProperty("town-lines", "visibility", S.showTowns ? "visible" : "none");
+    m.setLayoutProperty("town-labels", "visibility", S.showTowns ? "visible" : "none");
+    m.setLayoutProperty("region-lines", "visibility", S.showRegions ? "visible" : "none");
+    m.setLayoutProperty("region-casing", "visibility", S.showRegions ? "visible" : "none");
+  }
+  try { localStorage.setItem(BOUNDS_KEY, JSON.stringify({ towns: S.showTowns, regions: S.showRegions })); } catch (e) {}
+}
+
+// ---------- Aerial year + swipe compare ----------
+// The comparison year is drawn by a second, non-interactive map that follows the main map and is clipped to the right of the divider.
+let map2 = null, swipeEl = null, swipeX = 0;
+function setAerialA(y) {
+  S.aerialA = y;
+  if (S.basemap === "aerial" && map.getSource("aerial")) {
+    map.removeLayer("aerial"); map.removeSource("aerial");
+    map.addSource("aerial", aerialSource(y));
+    const first = map.getStyle().layers.find(l => l.id !== "bg");
+    map.addLayer({ id: "aerial", type: "raster", source: "aerial", paint: AERIAL_PAINT }, first && first.id);
+  }
+  updateSwipeLabels();
+}
+function setAerialB(y) {
+  S.aerialB = y;
+  if (map2 && map2.getSource("aerial")) {
+    map2.removeLayer("aerial"); map2.removeSource("aerial");
+    map2.addSource("aerial", aerialSource(y));
+    const first = map2.getStyle().layers.find(l => l.id !== "bg");
+    map2.addLayer({ id: "aerial", type: "raster", source: "aerial", paint: AERIAL_PAINT }, first && first.id);
+  }
+  updateSwipeLabels();
+}
+function updateSwipeLabels() {
+  if (!swipeEl) return;
+  swipeEl.querySelector(".l").textContent = S.aerialA;
+  swipeEl.querySelector(".r").textContent = S.aerialB;
+}
+const syncMap2 = () => map2 && map2.jumpTo({ center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() });
+function placeSwipe(x) {
+  const w = map.getContainer().clientWidth;
+  swipeX = Math.min(Math.max(x, 0), w);
+  swipeEl.style.left = swipeX + "px";
+  map2.getContainer().style.clipPath = `inset(0 0 0 ${swipeX}px)`;
+}
+function setSwipe(on) {
+  $("swipeOn").checked = on;
+  $("aerialB").disabled = !on;
+  if (!on) {
+    if (map2) { map.off("move", syncMap2); map2.remove(); map2.getContainer().remove(); map2 = null; }
+    if (swipeEl) { swipeEl.remove(); swipeEl = null; }
+    return;
+  }
+  if (map2) return;
+  const host = map.getContainer(), controls = host.querySelector(".maplibregl-control-container");
+  const el = document.createElement("div"); el.id = "map2"; el.setAttribute("aria-hidden", "true");
+  host.insertBefore(el, controls);
+  map2 = new maplibregl.Map({ container: el, style: aerialStyle(S.aerialB), interactive: false, attributionControl: false,
+    center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() });
+  map2.on("load", () => addBoundaryLayers(map2));
+  map.on("move", syncMap2);
+  swipeEl = document.createElement("div"); swipeEl.className = "swipe";
+  swipeEl.innerHTML = `<button type="button" class="swipe-grip" aria-label="Drag to compare aerial years. Arrow keys move the divider."><span class="l"></span><i>◀ ▶</i><span class="r"></span></button>`;
+  host.insertBefore(swipeEl, controls);
+  updateSwipeLabels();
+  placeSwipe(host.clientWidth / 2);
+  const grip = swipeEl.querySelector(".swipe-grip");
+  let drag = false;
+  grip.addEventListener("pointerdown", e => { drag = true; grip.setPointerCapture(e.pointerId); e.preventDefault(); });
+  grip.addEventListener("pointermove", e => { if (drag) placeSwipe(e.clientX - host.getBoundingClientRect().left); });
+  grip.addEventListener("pointerup", () => drag = false);
+  grip.addEventListener("pointercancel", () => drag = false);
+  grip.addEventListener("keydown", e => {
+    const step = e.shiftKey ? 100 : 25;
+    if (e.key === "ArrowLeft") { placeSwipe(swipeX - step); e.preventDefault(); }
+    if (e.key === "ArrowRight") { placeSwipe(swipeX + step); e.preventDefault(); }
+  });
+}
+addEventListener("resize", () => { if (swipeEl) placeSwipe(Math.min(swipeX, map.getContainer().clientWidth)); });
 
 map.on("load", () => {
   addLayers();
@@ -681,7 +993,7 @@ function ingest(pts) {
   if (isFinite(bb[0])) {
     const mobile = innerWidth <= 640;
     map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], {
-      padding: mobile ? { top: 140, bottom: 230, left: 20, right: 20 } : { top: 40, bottom: 170, left: 380, right: $("types").classList.contains("open") ? 340 : 40 },
+      padding: mobile ? { top: 140, bottom: dockH() + 20, left: 20, right: 20 } : { top: 40, bottom: dockH() + 20, left: 380, right: $("types").classList.contains("open") ? 340 : 40 },
       duration: 1200
     });
   }
@@ -722,8 +1034,11 @@ function setT(t) {
     showUpTo(Y);
     if (S.scrubbing) clearGlow(); else rebuildRecent(Y);
     $("year").textContent = Y;
-    $("nYear").textContent = fmt(S.counts.get(Y) || 0);
-    $("nCum").textContent = fmt(S.cum.get(Y) || 0);
+    // With a filter on, count only parcels in that span so the number matches the map
+    $("nCum").textContent = fmt(S.range
+      ? Math.max(0, (S.cum.get(Math.min(Y, S.range.b, S.maxY)) || 0) - (S.cum.get(S.range.a - 1) || 0))
+      : S.cum.get(Y) || 0);
+    $("nYear").textContent = fmt(S.range && (Y < S.range.a || Y > S.range.b) ? 0 : S.counts.get(Y) || 0);
     updateEraLine(Y);
     $("slider").value = Y;
   }
@@ -768,13 +1083,16 @@ function tick(now) {
   const dt = last ? Math.min((now - last) / 1000, 0.1) : 0;
   last = now;
   const next = S.t + dt * S.speed;
-  if (next >= S.maxY + 0.999) { setT(S.maxY + 0.999); pause(); return; }
+  // With a decade/era filter on, playback runs through just that span and stops at its end.
+  const end = S.range ? rangeEnd() : S.maxY + 0.999;
+  if (next >= end) { setT(end); pause(); return; }
   setT(next);
   raf = requestAnimationFrame(tick);
 }
 function play() {
   if (!S.loaded) return;
-  if (S.t >= S.maxY + 0.99) setT(S.minY);
+  if (S.range) { if (S.t >= rangeEnd() - 0.01 || S.t < rangeStart()) setT(rangeStart()); }
+  else if (S.t >= S.maxY + 0.99) setT(S.minY);
   S.playing = true; last = 0;
   $("play").textContent = "❚❚ Pause";
   raf = requestAnimationFrame(tick);
@@ -793,23 +1111,32 @@ function drawHist() {
   hctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   hctx.clearRect(0, 0, w, h);
   if (!S.loaded) return;
-  const n = S.maxY - S.minY + 1, axis = 14, top = 14, ph = h - axis - top;
+  const n = S.maxY - S.minY + 1, axis = 14, top = histTop(h), ph = h - axis - top;
   const bw = w / n;
   const x = y => (y - S.minY) * bw;
+  const two = top > 14;   // tall enough to stack era names on two lines
 
-  // Era bands (alternating shade) with labels along the top edge
+  // Era bands (alternating shade) with labels along the top edge. Click a label to show only that era.
   hctx.font = "600 9.5px 'Golos Text', system-ui, sans-serif"; hctx.textBaseline = "top";
   ERAS.forEach((e, i) => {
     const a = Math.max(e.from, S.minY), b = Math.min(e.to, S.maxY);
     if (b < a) return;
-    const x0 = x(a), x1 = x(b + 1);
+    const x0 = x(a), x1 = x(b + 1), room = x1 - x0 - 6;
     const cur = S.Y != null && S.Y >= e.from && S.Y <= e.to;
-    hctx.fillStyle = cur ? "rgba(118,176,83,.16)" : i % 2 ? "rgba(255,255,255,.045)" : "rgba(255,255,255,0)";
+    const sel = S.range && S.range.key === "era" + i;
+    hctx.fillStyle = sel ? "rgba(118,176,83,.26)" : cur ? "rgba(118,176,83,.16)" : i % 2 ? "rgba(255,255,255,.045)" : "rgba(255,255,255,0)";
     hctx.fillRect(x0, 0, x1 - x0, top + ph);
     if (i && e.from > S.minY) { hctx.fillStyle = "rgba(255,255,255,.22)"; hctx.fillRect(Math.round(x0), 0, 1, top + ph); }
-    const label = hctx.measureText(e.name).width + 8 <= x1 - x0 ? e.name : hctx.measureText(e.short).width + 8 <= x1 - x0 ? e.short : "";
-    if (label) { hctx.fillStyle = cur ? "#cfe6bf" : "#8e98b0"; hctx.fillText(label, x0 + 4, 2); }
+    const lines = fitLabel(e, room, two);
+    hctx.fillStyle = sel ? "#ffffff" : cur ? "#cfe6bf" : "#8e98b0";
+    lines.forEach((l, k) => hctx.fillText(l, x0 + 4, 2 + k * 11));
   });
+  // Filter on: grey out the bars outside the chosen span
+  if (S.range) {
+    const a = Math.max(S.range.a, S.minY), b = Math.min(S.range.b, S.maxY);
+    hctx.strokeStyle = "rgba(118,176,83,.9)"; hctx.lineWidth = 1;
+    hctx.strokeRect(Math.round(x(a)) + 0.5, top + 0.5, Math.max(1, Math.round(x(b + 1) - x(a)) - 1), ph - 1);
+  }
   // Key events: small markers on the top edge of the plot
   hctx.fillStyle = "#ffb347";
   for (const ev of EVENTS) {
@@ -834,7 +1161,8 @@ function drawHist() {
     if (!c) continue;
     const bh = Math.max(1, Math.sqrt(c / S.maxCount) * ph);
     const age = S.t - y;
-    if (age < 0) { hctx.fillStyle = "rgba(142,152,176,.22)"; }
+    if (S.range && (y < S.range.a || y > S.range.b)) { hctx.fillStyle = "rgba(142,152,176,.12)"; }
+    else if (age < 0) { hctx.fillStyle = "rgba(142,152,176,.22)"; }
     else if (age < S.fade) {
       const a = 1 - age / S.fade;
       hctx.fillStyle = `rgba(255,${Math.round(150 + 90 * a)},${Math.round(70 + 130 * a * a)},${0.45 + 0.55 * a})`;
@@ -849,18 +1177,40 @@ function drawHist() {
   hctx.shadowBlur = 0;
 }
 
+// Era label strip: two lines when the chart is tall (desktop), one line on short phone charts.
+function histTop(h) { return h >= 70 ? 25 : 14; }
+// Pick the era label that fits its band: full name on one line, full name wrapped onto two lines, short name, or nothing.
+function fitLabel(e, room, two) {
+  const fits = s => hctx.measureText(s).width <= room;
+  if (fits(e.name)) return [e.name];
+  if (two) {
+    const words = e.name.split(" ");
+    for (let k = words.length - 1; k > 0; k--) {
+      const l1 = words.slice(0, k).join(" "), l2 = words.slice(k).join(" ");
+      if (fits(l1) && fits(l2)) return [l1, l2];
+    }
+  }
+  return fits(e.short) ? [e.short] : [];
+}
 function histToYear(clientX) {
   const r = hist.getBoundingClientRect();
   const f = Math.min(Math.max((clientX - r.left) / r.width, 0), 1);
   return S.minY + f * (S.maxY - S.minY + 1);
 }
+const inLabelStrip = e => e.clientY - hist.getBoundingClientRect().top < histTop(hist.clientHeight);
 let dragging = false;
-hist.addEventListener("pointerdown", e => { if (!S.loaded) return; dragging = true; hist.setPointerCapture(e.pointerId); scrubTo(histToYear(e.clientX)); });
+hist.addEventListener("pointerdown", e => {
+  if (!S.loaded) return;
+  if (inLabelStrip(e)) { setRange(rangeFor("era", ERAS.indexOf(eraOf(Math.floor(histToYear(e.clientX)))))); return; }
+  dragging = true; hist.setPointerCapture(e.pointerId); scrubTo(histToYear(e.clientX));
+});
 hist.addEventListener("pointermove", e => {
   if (dragging) { scrubTo(histToYear(e.clientX)); return; }
   if (!S.loaded) return;
+  const strip = inLabelStrip(e);
+  hist.style.cursor = strip ? "pointer" : "ew-resize";
   const y = Math.floor(histToYear(e.clientX)), ev = EVENTS.find(v => v.y === y), er = eraOf(y);
-  hist.title = `${y} · ${er.name}${ev ? "\n" + ev.y + ": " + ev.text : ""}`;
+  hist.title = strip ? `Show only the ${er.name} (${eraYears(er)})` : `${y} · ${er.name}${ev ? "\n" + ev.y + ": " + ev.text : ""}`;
 });
 hist.addEventListener("pointerup", () => dragging = false);
 hist.addEventListener("keydown", e => {
@@ -872,13 +1222,32 @@ addEventListener("resize", drawHist);
 
 // ---------- Legend ----------
 function renderDecLegend() {
-  $("decLegend").innerHTML = DEC_COLORS.map((c, i) => `<div><span style="background:${c}"></span>${DEC_LABELS[i]}</div>`).join("");
+  const on = i => !!S.range && S.range.key === "dec" + i;
+  $("decLegend").innerHTML = DEC_COLORS.map((c, i) =>
+    `<button type="button" data-d="${i}" aria-pressed="${on(i)}" title="Show only parcels ${i ? "built in the " + DEC_LABELS[i] : "built before 1900"}"><span style="background:${c}"></span>${DEC_LABELS[i]}</button>`).join("");
 }
 renderDecLegend();
+$("eraChips").innerHTML = ERAS.map((e, i) =>
+  `<button type="button" data-e="${i}" aria-pressed="false" title="${esc(e.name)} (${eraYears(e)}): ${esc(e.note)}">${esc(e.short)}</button>`).join("");
 document.querySelectorAll("#basemapSeg button").forEach(b => {
   b.setAttribute("aria-pressed", b.dataset.b === S.basemap);
   b.addEventListener("click", () => setBasemap(b.dataset.b));
 });
+// Aerial year pickers and the swipe toggle
+for (const [id, val] of [["aerialA", S.aerialA], ["aerialB", S.aerialB]]) {
+  const sel = $(id);
+  for (const a of AERIALS) sel.append(new Option(a.label, a.y));
+  sel.value = val;
+}
+$("aerialRow").hidden = S.basemap !== "aerial";
+$("aerialA").addEventListener("change", e => setAerialA(e.target.value));
+$("aerialB").addEventListener("change", e => setAerialB(e.target.value));
+$("swipeOn").addEventListener("change", e => setSwipe(e.target.checked));
+// Boundary toggles
+$("showTowns").checked = S.showTowns; $("showRegions").checked = S.showRegions;
+$("showTowns").addEventListener("change", e => { S.showTowns = e.target.checked; setBoundaryVisibility(); });
+$("showRegions").addEventListener("change", e => { S.showRegions = e.target.checked; setBoundaryVisibility(); });
+loadBoundaries();
 
 // ---------- Home types chart ----------
 const tc = $("typesChart"), tctx = tc.getContext("2d");
@@ -988,6 +1357,11 @@ addSel.addEventListener("change", () => {
   loadAreas([...cur, a]);
 });
 $("play").addEventListener("click", () => S.playing ? pause() : play());
+$("filterClear").addEventListener("click", () => setRange(null));
+$("filterPlay").addEventListener("click", () => { if (S.range) { setT(rangeStart()); play(); } });
+$("eraLine").addEventListener("click", e => { const b = e.target.closest("[data-era]"); if (b) setRange(rangeFor("era", +b.dataset.era)); });
+$("decLegend").addEventListener("click", e => { const b = e.target.closest("[data-d]"); if (b) setRange(rangeFor("dec", +b.dataset.d)); });
+$("eraChips").addEventListener("click", e => { const b = e.target.closest("[data-e]"); if (b) setRange(rangeFor("era", +b.dataset.e)); });
 $("slider").addEventListener("input", e => scrubTo(+e.target.value));
 $("speed").addEventListener("change", e => S.speed = +e.target.value);
 $("fade").addEventListener("change", e => {
