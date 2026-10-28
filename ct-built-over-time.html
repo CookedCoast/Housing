@@ -198,6 +198,25 @@ h1{color:#fff}
 
 /* Mobile layout */
 .card-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+/* Collapsible panel: "Hide" shrinks the card to its top bar (logo, current area, buttons) so the map shows */
+.min-btn{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:5px 10px}
+.min-btn i{font-style:normal;font-size:10px}
+.min-area{display:none;flex:1;min-width:0;font:600 13px/1.2 var(--f-body);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card.min{width:auto;max-width:calc(100vw - 32px);padding-block:8px;gap:0;overflow:hidden}
+.card.min > :not(.card-top){display:none!important}
+.card.min .min-area{display:block}
+.card.min .info-btn{display:none!important}
+.dock-min{display:none}
+@media (max-width:640px){
+  .card.min{width:calc(100vw - 16px);max-width:none;padding:6px 8px}
+  .card.min .about-btn{display:none}
+  .card.min .min-area{font-size:12.5px}
+  .min-btn,.dock-min{min-height:34px!important;padding:4px 10px}
+  .dock-min{display:inline-flex;align-items:center;margin-left:auto;font-size:12px}
+  /* Compact timeline: keep year, filter banner, slider and play; hide the caption and chart */
+  .dock.min .era-line,.dock.min #hist,.dock.min .stats br{display:none}
+  .dock.min .stats{display:none}
+}
 .info-btn{display:none}
 .card-btns{display:inline-flex;gap:6px;align-items:center}
 .about-btn{font-size:12px;padding:5px 10px}
@@ -262,7 +281,7 @@ h1{color:#fff}
 <div id="map" aria-label="Map of parcels by year built"></div>
 
 <section class="card">
-  <div class="card-top"><a class="brand" href="https://secogct.gov" target="_blank" rel="noopener" title="Southeastern Connecticut Council of Governments"><svg xmlns="http://www.w3.org/2000/svg" width="171.275" height="36" viewBox="0 0 171.275 36" role="img" aria-label="SECOG"><path d="M18.362,40.907v7.736a.5.5,0,0,1-.5.5H8.546A7.886,7.886,0,0,1,.668,41.265v-.358a.5.5,0,0,1,.5-.5h16.7a.5.5,0,0,1,.5.5" transform="translate(-0.443 -26.77)" fill="#00619f"/><path d="M70.737,48.371v.294a.476.476,0,0,1-.476.477H57.685a.476.476,0,0,1-.476-.477V40.884a.476.476,0,0,1,.476-.476h5.089a7.973,7.973,0,0,1,7.964,7.963" transform="translate(-37.9 -26.77)" fill="#2a6b2e"/><path d="M10,.859V11.311a.859.859,0,0,1-.859.858H.858A.858.858,0,0,1,0,11.311V9.139A9.15,9.15,0,0,1,9.139,0,.86.86,0,0,1,10,.859" transform="translate(0 0)" fill="#07265c"/><path d="M45.441,11.931a.52.52,0,0,1-.433.237H34.329a.562.562,0,0,1-.537-.583v-11A.563.563,0,0,1,34.329,0h6.3a.536.536,0,0,1,.493.352l4.382,11a.623.623,0,0,1-.061.578" transform="translate(-22.387 0)" fill="#6b993c"/><path d="M72.146,2.785V9.553a2.608,2.608,0,0,1-2.592,2.618h-4.3a.518.518,0,0,1-.476-.316L60.373.74a.525.525,0,0,1,.046-.5.506.506,0,0,1,.429-.232H69.4a2.762,2.762,0,0,1,2.744,2.773" transform="translate(-39.968 -0.008)" fill="#00619f"/><path d="M77.693,73.489a9.149,9.149,0,0,1-9.139,9.138.858.858,0,0,1-.857-.858V71.318a.859.859,0,0,1,.857-.859h8.282a.859.859,0,0,1,.858.859Z" transform="translate(-44.848 -46.678)" fill="#6b993c"/><path d="M39.815,82.579h-6.3a.589.589,0,0,1-.541-.384l-4.381-11a.632.632,0,0,1,.541-.885H39.815a.613.613,0,0,1,.588.635v11a.613.613,0,0,1-.588.635" transform="translate(-18.913 -46.579)" fill="#07265c"/><path d="M13.708,82.4a.507.507,0,0,1-.43.232H4.725a2.762,2.762,0,0,1-2.744-2.773V73.092a2.608,2.608,0,0,1,2.591-2.618h4.3a.514.514,0,0,1,.475.316l4.406,11.116a.527.527,0,0,1-.046.5" transform="translate(-1.312 -46.688)" fill="#2a6b2e"/><g fill="#07265c"><path d="M139.349,40.163a15.711,15.711,0,0,1-6.049-1.015,8.233,8.233,0,0,1-3.688-2.829,7.892,7.892,0,0,1-1.385-4.234h5.853a3.709,3.709,0,0,0,1.424,2.342,6.715,6.715,0,0,0,3.844.819,8.016,8.016,0,0,0,4.039-.761,2.409,2.409,0,0,0,1.229-2.166,2.628,2.628,0,0,0-.722-1.912,5.729,5.729,0,0,0-2.2-1.268,28.073,28.073,0,0,0-3.863-1,19.294,19.294,0,0,1-4.761-1.522,7.12,7.12,0,0,1-3.024-2.654,7.985,7.985,0,0,1-1.034-4.254,6.79,6.79,0,0,1,1.268-4.117,8.291,8.291,0,0,1,3.59-2.712,14.1,14.1,0,0,1,5.483-.975,14.275,14.275,0,0,1,5.639.956,7.508,7.508,0,0,1,3.356,2.673A8.418,8.418,0,0,1,149.69,19.6h-5.815a3.3,3.3,0,0,0-1.288-2.088,5.83,5.83,0,0,0-3.239-.683,6.143,6.143,0,0,0-3.4.742,2.294,2.294,0,0,0-1.093,1.99,2.637,2.637,0,0,0,1.5,2.38,16.282,16.282,0,0,0,4.741,1.483,26.831,26.831,0,0,1,3.961,1.054,9.837,9.837,0,0,1,2.946,1.619,6.485,6.485,0,0,1,1.834,2.4,8.331,8.331,0,0,1,.624,3.4,7.445,7.445,0,0,1-1.307,4.371,8.3,8.3,0,0,1-3.785,2.888,15.934,15.934,0,0,1-6.029,1.015" transform="translate(-84.949 -7.89)"/><path d="M206.849,40.614V13.3h19.043v4.839H212.7v6.088h12.019v4.683H212.7v6.868h13.19v4.839Z" transform="translate(-137.035 -8.81)"/><path d="M284.931,40.163a13.746,13.746,0,0,1-6.342-1.424,10,10,0,0,1-4.37-4.488,17.513,17.513,0,0,1-1.581-8.019v-.78a17.915,17.915,0,0,1,.937-6.146,10.964,10.964,0,0,1,2.634-4.195,10.675,10.675,0,0,1,3.922-2.42,14.406,14.406,0,0,1,4.8-.78,15.876,15.876,0,0,1,4.312.566,11.2,11.2,0,0,1,3.571,1.7A8.483,8.483,0,0,1,295.33,17.1a10.283,10.283,0,0,1,1.112,4.215h-6.088a5.267,5.267,0,0,0-1.873-3.4,5.717,5.717,0,0,0-3.551-1.093,6.051,6.051,0,0,0-3.044.8A5.743,5.743,0,0,0,279.6,20.3a12.358,12.358,0,0,0-.878,5.151v.78a14.549,14.549,0,0,0,.546,4.312,7.693,7.693,0,0,0,1.444,2.771,5.31,5.31,0,0,0,1.99,1.483,5.8,5.8,0,0,0,2.225.449,5.7,5.7,0,0,0,3.668-1.151,4.967,4.967,0,0,0,1.756-3.337h6.088a11.315,11.315,0,0,1-1.132,4.351,8.225,8.225,0,0,1-2.458,2.927,10.1,10.1,0,0,1-3.551,1.619,18,18,0,0,1-4.371.507" transform="translate(-180.62 -7.89)"/><path d="M363.328,40.163a15.1,15.1,0,0,1-4.878-.78,11.511,11.511,0,0,1-4.117-2.439,11.253,11.253,0,0,1-2.849-4.312,17.634,17.634,0,0,1-1.034-6.4v-.78a16.371,16.371,0,0,1,1.034-6.146,11.207,11.207,0,0,1,2.849-4.195,11.676,11.676,0,0,1,4.117-2.42,15.637,15.637,0,0,1,9.756,0,11.682,11.682,0,0,1,4.117,2.42,11.216,11.216,0,0,1,2.849,4.195,16.385,16.385,0,0,1,1.034,6.146v.78a17.65,17.65,0,0,1-1.034,6.4,11.261,11.261,0,0,1-2.849,4.312,11.517,11.517,0,0,1-4.117,2.439,15.1,15.1,0,0,1-4.878.78m0-4.917a6.866,6.866,0,0,0,3.337-.839,6.066,6.066,0,0,0,2.5-2.81,12.463,12.463,0,0,0,.956-5.366v-.78a11.394,11.394,0,0,0-.956-5.093,6,6,0,0,0-2.5-2.712,7.163,7.163,0,0,0-6.654,0,5.966,5.966,0,0,0-2.517,2.712,11.39,11.39,0,0,0-.956,5.093v.78a12.459,12.459,0,0,0,.956,5.366,6.027,6.027,0,0,0,2.517,2.81,6.9,6.9,0,0,0,3.317.839" transform="translate(-232.169 -7.89)"/><path d="M447.3,40.163a14.41,14.41,0,0,1-6.5-1.424,10.323,10.323,0,0,1-4.527-4.488,16.808,16.808,0,0,1-1.659-8.019v-.78a17,17,0,0,1,.995-6.127,10.917,10.917,0,0,1,6.751-6.634,14.332,14.332,0,0,1,4.741-.78,15.189,15.189,0,0,1,4.273.566,10.6,10.6,0,0,1,3.414,1.678,9.184,9.184,0,0,1,2.459,2.81,12,12,0,0,1,1.366,3.961h-6.088a6.493,6.493,0,0,0-1.4-2.517,4.614,4.614,0,0,0-1.893-1.21,6.946,6.946,0,0,0-2.127-.331,6.4,6.4,0,0,0-3.18.819,5.742,5.742,0,0,0-2.342,2.693,12.133,12.133,0,0,0-.878,5.073v.78a14.181,14.181,0,0,0,.546,4.254,7.191,7.191,0,0,0,1.5,2.751,5.853,5.853,0,0,0,2.127,1.5,6.457,6.457,0,0,0,2.42.468,7.658,7.658,0,0,0,3.044-.585,5.166,5.166,0,0,0,2.244-1.854,6.533,6.533,0,0,0,1.034-3.259h-5.542V25.451h11.122v1.561a18.376,18.376,0,0,1-.839,5.873,10.653,10.653,0,0,1-2.42,4.1,9.783,9.783,0,0,1-3.766,2.4,14.434,14.434,0,0,1-4.878.78" transform="translate(-287.931 -7.89)"/></g></svg></a><span class="card-btns"><button type="button" id="aboutBtn" class="about-btn" aria-haspopup="dialog">About</button><button type="button" id="infoBtn" class="info-btn" aria-expanded="false">Legend &amp; info</button></span></div>
+  <div class="card-top"><a class="brand" href="https://secogct.gov" target="_blank" rel="noopener" title="Southeastern Connecticut Council of Governments"><svg xmlns="http://www.w3.org/2000/svg" width="171.275" height="36" viewBox="0 0 171.275 36" role="img" aria-label="SECOG"><path d="M18.362,40.907v7.736a.5.5,0,0,1-.5.5H8.546A7.886,7.886,0,0,1,.668,41.265v-.358a.5.5,0,0,1,.5-.5h16.7a.5.5,0,0,1,.5.5" transform="translate(-0.443 -26.77)" fill="#00619f"/><path d="M70.737,48.371v.294a.476.476,0,0,1-.476.477H57.685a.476.476,0,0,1-.476-.477V40.884a.476.476,0,0,1,.476-.476h5.089a7.973,7.973,0,0,1,7.964,7.963" transform="translate(-37.9 -26.77)" fill="#2a6b2e"/><path d="M10,.859V11.311a.859.859,0,0,1-.859.858H.858A.858.858,0,0,1,0,11.311V9.139A9.15,9.15,0,0,1,9.139,0,.86.86,0,0,1,10,.859" transform="translate(0 0)" fill="#07265c"/><path d="M45.441,11.931a.52.52,0,0,1-.433.237H34.329a.562.562,0,0,1-.537-.583v-11A.563.563,0,0,1,34.329,0h6.3a.536.536,0,0,1,.493.352l4.382,11a.623.623,0,0,1-.061.578" transform="translate(-22.387 0)" fill="#6b993c"/><path d="M72.146,2.785V9.553a2.608,2.608,0,0,1-2.592,2.618h-4.3a.518.518,0,0,1-.476-.316L60.373.74a.525.525,0,0,1,.046-.5.506.506,0,0,1,.429-.232H69.4a2.762,2.762,0,0,1,2.744,2.773" transform="translate(-39.968 -0.008)" fill="#00619f"/><path d="M77.693,73.489a9.149,9.149,0,0,1-9.139,9.138.858.858,0,0,1-.857-.858V71.318a.859.859,0,0,1,.857-.859h8.282a.859.859,0,0,1,.858.859Z" transform="translate(-44.848 -46.678)" fill="#6b993c"/><path d="M39.815,82.579h-6.3a.589.589,0,0,1-.541-.384l-4.381-11a.632.632,0,0,1,.541-.885H39.815a.613.613,0,0,1,.588.635v11a.613.613,0,0,1-.588.635" transform="translate(-18.913 -46.579)" fill="#07265c"/><path d="M13.708,82.4a.507.507,0,0,1-.43.232H4.725a2.762,2.762,0,0,1-2.744-2.773V73.092a2.608,2.608,0,0,1,2.591-2.618h4.3a.514.514,0,0,1,.475.316l4.406,11.116a.527.527,0,0,1-.046.5" transform="translate(-1.312 -46.688)" fill="#2a6b2e"/><g fill="#07265c"><path d="M139.349,40.163a15.711,15.711,0,0,1-6.049-1.015,8.233,8.233,0,0,1-3.688-2.829,7.892,7.892,0,0,1-1.385-4.234h5.853a3.709,3.709,0,0,0,1.424,2.342,6.715,6.715,0,0,0,3.844.819,8.016,8.016,0,0,0,4.039-.761,2.409,2.409,0,0,0,1.229-2.166,2.628,2.628,0,0,0-.722-1.912,5.729,5.729,0,0,0-2.2-1.268,28.073,28.073,0,0,0-3.863-1,19.294,19.294,0,0,1-4.761-1.522,7.12,7.12,0,0,1-3.024-2.654,7.985,7.985,0,0,1-1.034-4.254,6.79,6.79,0,0,1,1.268-4.117,8.291,8.291,0,0,1,3.59-2.712,14.1,14.1,0,0,1,5.483-.975,14.275,14.275,0,0,1,5.639.956,7.508,7.508,0,0,1,3.356,2.673A8.418,8.418,0,0,1,149.69,19.6h-5.815a3.3,3.3,0,0,0-1.288-2.088,5.83,5.83,0,0,0-3.239-.683,6.143,6.143,0,0,0-3.4.742,2.294,2.294,0,0,0-1.093,1.99,2.637,2.637,0,0,0,1.5,2.38,16.282,16.282,0,0,0,4.741,1.483,26.831,26.831,0,0,1,3.961,1.054,9.837,9.837,0,0,1,2.946,1.619,6.485,6.485,0,0,1,1.834,2.4,8.331,8.331,0,0,1,.624,3.4,7.445,7.445,0,0,1-1.307,4.371,8.3,8.3,0,0,1-3.785,2.888,15.934,15.934,0,0,1-6.029,1.015" transform="translate(-84.949 -7.89)"/><path d="M206.849,40.614V13.3h19.043v4.839H212.7v6.088h12.019v4.683H212.7v6.868h13.19v4.839Z" transform="translate(-137.035 -8.81)"/><path d="M284.931,40.163a13.746,13.746,0,0,1-6.342-1.424,10,10,0,0,1-4.37-4.488,17.513,17.513,0,0,1-1.581-8.019v-.78a17.915,17.915,0,0,1,.937-6.146,10.964,10.964,0,0,1,2.634-4.195,10.675,10.675,0,0,1,3.922-2.42,14.406,14.406,0,0,1,4.8-.78,15.876,15.876,0,0,1,4.312.566,11.2,11.2,0,0,1,3.571,1.7A8.483,8.483,0,0,1,295.33,17.1a10.283,10.283,0,0,1,1.112,4.215h-6.088a5.267,5.267,0,0,0-1.873-3.4,5.717,5.717,0,0,0-3.551-1.093,6.051,6.051,0,0,0-3.044.8A5.743,5.743,0,0,0,279.6,20.3a12.358,12.358,0,0,0-.878,5.151v.78a14.549,14.549,0,0,0,.546,4.312,7.693,7.693,0,0,0,1.444,2.771,5.31,5.31,0,0,0,1.99,1.483,5.8,5.8,0,0,0,2.225.449,5.7,5.7,0,0,0,3.668-1.151,4.967,4.967,0,0,0,1.756-3.337h6.088a11.315,11.315,0,0,1-1.132,4.351,8.225,8.225,0,0,1-2.458,2.927,10.1,10.1,0,0,1-3.551,1.619,18,18,0,0,1-4.371.507" transform="translate(-180.62 -7.89)"/><path d="M363.328,40.163a15.1,15.1,0,0,1-4.878-.78,11.511,11.511,0,0,1-4.117-2.439,11.253,11.253,0,0,1-2.849-4.312,17.634,17.634,0,0,1-1.034-6.4v-.78a16.371,16.371,0,0,1,1.034-6.146,11.207,11.207,0,0,1,2.849-4.195,11.676,11.676,0,0,1,4.117-2.42,15.637,15.637,0,0,1,9.756,0,11.682,11.682,0,0,1,4.117,2.42,11.216,11.216,0,0,1,2.849,4.195,16.385,16.385,0,0,1,1.034,6.146v.78a17.65,17.65,0,0,1-1.034,6.4,11.261,11.261,0,0,1-2.849,4.312,11.517,11.517,0,0,1-4.117,2.439,15.1,15.1,0,0,1-4.878.78m0-4.917a6.866,6.866,0,0,0,3.337-.839,6.066,6.066,0,0,0,2.5-2.81,12.463,12.463,0,0,0,.956-5.366v-.78a11.394,11.394,0,0,0-.956-5.093,6,6,0,0,0-2.5-2.712,7.163,7.163,0,0,0-6.654,0,5.966,5.966,0,0,0-2.517,2.712,11.39,11.39,0,0,0-.956,5.093v.78a12.459,12.459,0,0,0,.956,5.366,6.027,6.027,0,0,0,2.517,2.81,6.9,6.9,0,0,0,3.317.839" transform="translate(-232.169 -7.89)"/><path d="M447.3,40.163a14.41,14.41,0,0,1-6.5-1.424,10.323,10.323,0,0,1-4.527-4.488,16.808,16.808,0,0,1-1.659-8.019v-.78a17,17,0,0,1,.995-6.127,10.917,10.917,0,0,1,6.751-6.634,14.332,14.332,0,0,1,4.741-.78,15.189,15.189,0,0,1,4.273.566,10.6,10.6,0,0,1,3.414,1.678,9.184,9.184,0,0,1,2.459,2.81,12,12,0,0,1,1.366,3.961h-6.088a6.493,6.493,0,0,0-1.4-2.517,4.614,4.614,0,0,0-1.893-1.21,6.946,6.946,0,0,0-2.127-.331,6.4,6.4,0,0,0-3.18.819,5.742,5.742,0,0,0-2.342,2.693,12.133,12.133,0,0,0-.878,5.073v.78a14.181,14.181,0,0,0,.546,4.254,7.191,7.191,0,0,0,1.5,2.751,5.853,5.853,0,0,0,2.127,1.5,6.457,6.457,0,0,0,2.42.468,7.658,7.658,0,0,0,3.044-.585,5.166,5.166,0,0,0,2.244-1.854,6.533,6.533,0,0,0,1.034-3.259h-5.542V25.451h11.122v1.561a18.376,18.376,0,0,1-.839,5.873,10.653,10.653,0,0,1-2.42,4.1,9.783,9.783,0,0,1-3.766,2.4,14.434,14.434,0,0,1-4.878.78" transform="translate(-287.931 -7.89)"/></g></svg></a><span class="min-area" id="minArea"></span><span class="card-btns"><button type="button" id="aboutBtn" class="about-btn" aria-haspopup="dialog">About</button><button type="button" id="infoBtn" class="info-btn" aria-expanded="false">Legend &amp; info</button><button type="button" id="minBtn" class="min-btn" aria-expanded="true" title="Hide the panel to see more of the map"><span class="lbl">Hide</span><i aria-hidden="true">▴</i></button></span></div>
   <div>
     <p class="eyebrow">CT CAMA &amp; Parcels · Actual Year Built</p>
     <h1>Connecticut Built Over Time</h1>
@@ -331,6 +350,7 @@ h1{color:#fff}
   <div class="readout">
     <div id="year">—</div>
     <div class="stats">Built this year <b id="nYear">0</b><br>Standing, built by now <b id="nCum">0</b></div>
+    <button type="button" id="dockMin" class="dock-min" aria-expanded="true" title="Show less of the timeline to see more of the map">Less ▾</button>
   </div>
   <div class="timeline">
     <div class="filter-bar" id="filterBar" hidden>
@@ -533,16 +553,7 @@ function updateFilterBar() {
 }
 const rangeEnd = () => Math.min(S.range.b, S.maxY) + 0.999;
 const rangeStart = () => Math.max(S.range.a, S.minY);
-function rangeFilter() {
-  const c = [];
-  if (S.range) c.push([">=", ["get", "y"], S.range.a], ["<=", ["get", "y"], S.range.b]);
-  if (S.types) c.push(["in", ["get", "k"], ["literal", [...S.types]]]);
-  return c.length ? ["all", ...c] : null;
-}
-function applyRangeFilter() {
-  const f = rangeFilter();
-  for (const id of ["parcels-pts", "glow-halo"]) if (map.getLayer(id)) map.setFilter(id, f);
-}
+function applyRangeFilter() { map.triggerRepaint(); }   // the parcel layer reads S.range and S.types each frame
 function setRange(r) {
   if (r && S.range && r.key === S.range.key) r = null;     // clicking the active filter again clears it
   S.range = r;
@@ -647,7 +658,7 @@ new ResizeObserver(() => document.documentElement.style.setProperty("--dock-h", 
 const S = {
   t: null, Y: null, playing: false, speed: 3, fade: 6,
   minY: 1700, maxY: MAX_YEAR,
-  ptsByYear: new Map(), areas: [],
+  areas: [],
   counts: new Map(), cum: new Map(), maxCount: 1, loaded: false,
   range: null, aerialA: "1934", aerialB: "2023", bounds: null,
   showTowns: true, showRegions: true, noteOpen: false
@@ -656,6 +667,132 @@ try {
   const b = JSON.parse(localStorage.getItem(BOUNDS_KEY) || "null");
   if (b) { S.showTowns = b.towns !== false; S.showRegions = b.regions !== false; }
 } catch (e) {}
+
+// ---------- Parcel points: one small WebGL layer ----------
+// Every parcel sits in one GPU buffer (x, y, year, type). The current time, the "just built" glow and the
+// decade/era and home-type filters are shader uniforms, so playback is one repaint per frame and memory stays
+// at one compact copy of the data (a GeoJSON source keeps several copies per zoom level in map workers).
+const mercX = lng => (180 + lng) / 360;
+const mercY = lat => (180 - (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360))) / 360;
+const hexRGB = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+const lerpStops = (z, st) => {
+  if (z <= st[0][0]) return st[0][1];
+  for (let i = 1; i < st.length; i++) if (z <= st[i][0]) { const [z0, v0] = st[i - 1], [z1, v1] = st[i]; return v0 + (v1 - v0) * (z - z0) / (z1 - z0); }
+  return st[st.length - 1][1];
+};
+const DOT_R = [[8, 1.4], [11, 2.4], [14, 4.5], [17, 8]];      // dot radius (px) by zoom
+const HALO_R = [[9, 3], [12, 10], [15, 28], [18, 70]];        // glow radius (px) by zoom
+const PARCEL_VS = `
+precision highp float;
+attribute vec2 a_pos; attribute float a_year; attribute float a_k;
+uniform mat4 u_matrix;
+uniform float u_t, u_fade, u_r, u_halo, u_glow, u_pass, u_dpr, u_maxPt;
+uniform vec2 u_range;
+uniform float u_tmask[6];
+uniform vec3 u_pal[14];
+varying vec4 v_color; varying float v_blur;
+void hide() { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; }
+void main() {
+  if (a_year > floor(u_t) || a_year < u_range.x || a_year > u_range.y || u_tmask[int(a_k + 0.5)] < 0.5) { hide(); return; }
+  gl_Position = u_matrix * vec4(a_pos, 0.0, 1.0);
+  float age = u_t - a_year;
+  if (u_pass < 0.5) {
+    // Glow: orange flare that fades and shrinks over the "Glow lasts" years
+    if (u_glow < 0.5 || age < 0.0 || age >= u_fade) { hide(); return; }
+    float k = age < 1.0 ? mix(1.7, 1.0, age) : mix(1.0, 0.35, (age - 1.0) / max(u_fade - 1.0, 0.001));
+    float op = 0.85 * (1.0 - age / u_fade), h = u_fade * 0.5;
+    vec3 c0 = vec3(1.0, 0.957, 0.812), c1 = vec3(1.0, 0.82, 0.4), c2 = vec3(1.0, 0.478, 0.271), c3 = vec3(0.761, 0.255, 0.047);
+    vec3 c = age < 0.6 ? mix(c0, c1, age / 0.6) : age < h ? mix(c1, c2, (age - 0.6) / max(h - 0.6, 0.001)) : mix(c2, c3, (age - h) / max(u_fade - h, 0.001));
+    v_color = vec4(c * op, op); v_blur = 1.0;
+    gl_PointSize = min(2.0 * u_halo * k * u_dpr, u_maxPt);
+  } else {
+    float d = a_year < 1900.0 ? 0.0 : min(13.0, floor((a_year - 1900.0) / 10.0) + 1.0);
+    v_color = vec4(u_pal[int(d)] * 0.9, 0.9); v_blur = 0.0;
+    gl_PointSize = 2.0 * u_r * u_dpr + 1.0;
+  }
+}`;
+const PARCEL_FS = `
+precision mediump float;
+varying vec4 v_color; varying float v_blur;
+void main() {
+  float d = length(gl_PointCoord - 0.5) * 2.0;
+  float a = v_blur > 0.5 ? 1.0 - smoothstep(0.0, 1.0, d) : 1.0 - smoothstep(0.82, 1.0, d);
+  if (a <= 0.0) discard;
+  gl_FragColor = v_color * a;
+}`;
+const parcelLayer = {
+  id: "parcels", type: "custom", renderingMode: "2d",
+  onAdd(m, gl) {
+    const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+    const prog = gl.createProgram();
+    gl.attachShader(prog, sh(gl.VERTEX_SHADER, PARCEL_VS)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, PARCEL_FS));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    this.gl = gl; this.prog = prog; this.buf = gl.createBuffer(); this.n = 0;
+    this.L = {};
+    for (const a of ["a_pos", "a_year", "a_k"]) this.L[a] = gl.getAttribLocation(prog, a);
+    for (const u of ["u_matrix", "u_t", "u_fade", "u_r", "u_halo", "u_glow", "u_pass", "u_dpr", "u_maxPt", "u_range", "u_tmask", "u_pal"]) this.L[u] = gl.getUniformLocation(prog, u);
+    this.maxPt = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)[1] || 64;
+    this.upload();
+  },
+  upload() {
+    const gl = this.gl; if (!gl) return;
+    const P = S.P;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+    gl.bufferData(gl.ARRAY_BUFFER, P ? P.gpu : new Float32Array(0), gl.STATIC_DRAW);
+    this.n = P ? P.n : 0;
+    map.triggerRepaint();
+  },
+  onRemove(m, gl) { gl.deleteBuffer(this.buf); gl.deleteProgram(this.prog); this.gl = null; },
+  render(gl, matrix) {
+    const P = S.P;
+    if (!this.n || !S.loaded || !P) return;
+    const L = this.L;
+    if (gl.bindVertexArray) gl.bindVertexArray(null);
+    else { const ext = gl.getExtension("OES_vertex_array_object"); if (ext) ext.bindVertexArrayOES(null); }
+    gl.useProgram(this.prog);
+    // Shift the camera matrix to the area's center (positions are stored relative to it)
+    const M = new Float32Array(16);
+    for (let i = 0; i < 12; i++) M[i] = matrix[i];
+    for (let i = 0; i < 4; i++) M[12 + i] = matrix[i] * P.ox + matrix[4 + i] * P.oy + matrix[12 + i];
+    gl.uniformMatrix4fv(L.u_matrix, false, M);
+    const z = map.getZoom(), r = S.range, T = S.types;
+    gl.uniform1f(L.u_t, S.t);
+    gl.uniform1f(L.u_fade, S.fade);
+    gl.uniform1f(L.u_r, lerpStops(z, DOT_R));
+    gl.uniform1f(L.u_halo, lerpStops(z, HALO_R));
+    gl.uniform1f(L.u_glow, S.noGlow || S.scrubbing ? 0 : 1);
+    gl.uniform1f(L.u_dpr, devicePixelRatio || 1);
+    gl.uniform1f(L.u_maxPt, this.maxPt);
+    gl.uniform2f(L.u_range, r ? r.a : -1e5, r ? r.b : 1e5);
+    gl.uniform1fv(L.u_tmask, TYPES.map((_, k) => !T || T.has(k) ? 1 : 0));
+    if (this.palFor !== DEC_COLORS) { this.pal = new Float32Array(DEC_COLORS.flatMap(hexRGB)); this.palFor = DEC_COLORS; }
+    gl.uniform3fv(L.u_pal, this.pal);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+    const attr = (loc, size, off) => { if (loc < 0) return; gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 16, off); };
+    attr(L.a_pos, 2, 0); attr(L.a_year, 1, 8); attr(L.a_k, 1, 12);
+    gl.disable(gl.DEPTH_TEST); gl.disable(gl.STENCIL_TEST);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    if (!(S.noGlow || S.scrubbing)) { gl.uniform1f(L.u_pass, 0); gl.drawArrays(gl.POINTS, 0, this.n); }
+    gl.uniform1f(L.u_pass, 1); gl.drawArrays(gl.POINTS, 0, this.n);
+    for (const loc of [L.a_pos, L.a_year, L.a_k]) if (loc >= 0) gl.disableVertexAttribArray(loc);
+  }
+};
+// Nearest visible parcel to a screen point (a plain scan of the typed arrays: ~1 ms for 300k parcels)
+function hitParcel(pt) {
+  const P = S.P; if (!P || !S.loaded) return -1;
+  const ll = map.unproject(pt), mx = mercX(ll.lng), my = mercY(ll.lat), z = map.getZoom();
+  const rad = (lerpStops(z, DOT_R) + 3) / (512 * Math.pow(2, z));
+  const Y = S.Y, a = S.range ? S.range.a : -1e5, b = S.range ? S.range.b : 1e5, T = S.types;
+  let best = -1, bd = rad * rad;
+  for (let i = 0; i < P.n; i++) {
+    const dx = P.mx[i] - mx; if (dx > rad || dx < -rad) continue;
+    const dy = P.my[i] - my; if (dy > rad || dy < -rad) continue;
+    const y = P.y[i]; if (y > Y || y < a || y > b || (T && !T.has(P.k[i]))) continue;
+    const d = dx * dx + dy * dy; if (d < bd) { bd = d; best = i; }
+  }
+  return best;
+}
 
 // ---------- Map ----------
 const map = new maplibregl.Map({
@@ -678,30 +815,13 @@ function addLayers() {
   layers.forEach((l, i) => { if (l.type === "fill" || l.type === "fill-extrusion" || l.type === "line" || l.type === "raster") lastFill = i; });
   const before = layers.find(l => l.id === "ref-labels")?.id || layers.slice(lastFill + 1).find(l => l.type === "symbol")?.id;
 
-  map.addSource("pts", { type: "geojson", data: S.pts ? { type: "FeatureCollection", features: S.pts } : EMPTY, promoteId: "id" });
-  map.addSource("recent-pts", { type: "geojson", data: EMPTY });
-
-  // Glow halo sits under the points so a just-built parcel shows its decade color inside an orange flare.
-  map.addLayer({
-    id: "glow-halo", type: "circle", source: "recent-pts",
-    paint: { "circle-color": "#ffb347", "circle-opacity": 0, "circle-radius": 6, "circle-blur": 1, "circle-pitch-alignment": "map" }
-  }, before);
-  map.addLayer({
-    id: "parcels-pts", type: "circle", source: "pts",
-    paint: {
-      "circle-color": decStep(),
-      // Shown/hidden per parcel via feature-state, which is far cheaper than re-filtering every year
-      "circle-opacity": ["case", ["boolean", ["feature-state", "on"], false], 0.9, 0],
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 1.4, 11, 2.4, 14, 4.5, 17, 8]
-    }
-  }, before);
-  applyRangeFilter();
-  addBoundaryLayers(map, "glow-halo");
+  // All parcels are drawn by one small WebGL layer (see parcelLayer); no GeoJSON source, so nothing is copied into map workers.
+  map.addLayer(parcelLayer, before);
+  addBoundaryLayers(map, "parcels");
 
   S.mapReady = true;
-  if (S.pendingPts) { const p = S.pendingPts; S.pendingPts = null; ingest(p); if (!S.splashOpen) play(); else S.playOnClose = true; return; }
-  // After a style swap, re-apply which parcels are visible and the glow for the current year
-  if (S.loaded) { S.shownY = S.firstYear - 1; S.glowOn = false; S.glowT = null; S.Y = null; setT(S.t); }
+  if (S.pendingP) { const P = S.pendingP; S.pendingP = null; ingest(P); if (!S.splashOpen) play(); else S.playOnClose = true; return; }
+  if (S.loaded) { S.Y = null; setT(S.t); }
 }
 
 function setBasemap(key) {
@@ -742,7 +862,7 @@ async function loadBoundaries() {
       return { type: "Feature", geometry: { type: "Point", coordinates: best }, properties: { name: f.properties.TOWN } };
     }) };
     S.bounds = { towns, regions, townPts };
-    if (S.mapReady) addBoundaryLayers(map, "glow-halo");
+    if (S.mapReady) addBoundaryLayers(map, "parcels");
     if (map2 && map2.isStyleLoaded()) addBoundaryLayers(map2);
   } catch (e) { console.warn("Couldn't load boundaries", e); }
 }
@@ -860,10 +980,10 @@ addEventListener("resize", () => { if (swipeEl) placeSwipe(Math.min(swipeX, map.
 map.on("load", () => {
   addLayers();
 
-  map.on("click", "parcels-pts", async e => {
-    const hit = e.features.find(f => f.properties.y <= S.Y);
-    if (!hit) return;
-    const p = hit.properties;
+  map.on("click", async e => {
+    const i = hitParcel(e.point);
+    if (i < 0) return;
+    const p = { id: S.P.id[i], y: S.P.y[i] };
     const pop = new maplibregl.Popup({ maxWidth: "260px" }).setLngLat(e.lngLat)
       .setHTML(`<div class="pop-y">${esc(p.y)}</div><div style="color:var(--muted)">Loading details…</div>`).addTo(map);
     try {
@@ -878,8 +998,11 @@ map.on("load", () => {
       pop.setHTML(`<div class="pop-y">${esc(p.y)}</div><div style="color:var(--muted)">Couldn't load details.</div>`);
     }
   });
-  map.on("mousemove", "parcels-pts", e => map.getCanvas().style.cursor = e.features.some(f => f.properties.y <= S.Y) ? "pointer" : "");
-  map.on("mouseleave", "parcels-pts", () => map.getCanvas().style.cursor = "");
+  let hoverRaf = 0, hoverPt = null;
+  map.on("mousemove", e => {
+    hoverPt = e.point;
+    if (!hoverRaf) hoverRaf = requestAnimationFrame(() => { hoverRaf = 0; map.getCanvas().style.cursor = hitParcel(hoverPt) >= 0 ? "pointer" : ""; });
+  });
 
 });
 
@@ -932,6 +1055,7 @@ function describe(areas) {
 function renderChips() {
   const el = $("chips");
   const A = S.wantAreas || S.areas;
+  $("minArea").textContent = A.length ? describe(A) : "";
   el.innerHTML = A.length > 1 ? A.map((a, i) =>
     `<span class="chip">${esc(areaLabel(a))}<button type="button" data-i="${i}" aria-label="Remove ${esc(areaLabel(a))}">×</button></span>`).join("") : "";
 }
@@ -966,7 +1090,9 @@ async function loadAreas(areas) {
       cur.push(id);
     }
     if (cur.length) chunks.push(cur);
-    const pts = [];
+    // Compact storage: one typed array per field instead of a JS object per parcel.
+    const P = { n: 0, id: new Int32Array(count), y: new Int16Array(count), k: new Uint8Array(count),
+                mx: new Float64Array(count), my: new Float64Array(count), bb: [Infinity, Infinity, -Infinity, -Infinity] };
     setStatus(`Loading ${label}: 0 of ${fmt(count)} parcels`);
     await pool(chunks, CONCURRENCY, async chunk => {
       if (token !== loadToken) return;
@@ -977,17 +1103,19 @@ async function loadAreas(areas) {
       }, 4, ctl.signal);
       if (token !== loadToken) return;
       for (const f of j.features || []) {
-        const c = f.centroid; if (!c || !isFinite(c.x) || !isFinite(c.y)) continue;
-        pts.push({ type: "Feature", geometry: { type: "Point", coordinates: [+c.x.toFixed(6), +c.y.toFixed(6)] },
-                   properties: { id: f.attributes.OBJECTID, y: Math.round(f.attributes.AYB), k: classifyUse(f.attributes.State_Use_Description) } });
+        const c = f.centroid; if (!c || !isFinite(c.x) || !isFinite(c.y) || P.n >= count) continue;
+        const i = P.n++;
+        P.id[i] = f.attributes.OBJECTID; P.y[i] = Math.round(f.attributes.AYB); P.k[i] = classifyUse(f.attributes.State_Use_Description);
+        P.mx[i] = mercX(c.x); P.my[i] = mercY(c.y);
+        const bb = P.bb; if (c.x < bb[0]) bb[0] = c.x; if (c.y < bb[1]) bb[1] = c.y; if (c.x > bb[2]) bb[2] = c.x; if (c.y > bb[3]) bb[3] = c.y;
       }
-      setStatus(`Loading ${label}: ${fmt(pts.length)} of ${fmt(count)} parcels`);
+      setStatus(`Loading ${label}: ${fmt(P.n)} of ${fmt(count)} parcels`);
     });
     if (token !== loadToken) return;
     S.areas = areas;
     renderChips();
-    ingest(pts);
-    setStatus(`${label}: ${fmt(pts.length)} parcels with a build year. Click any point for details.`);
+    ingest(P);
+    setStatus(`${label}: ${fmt(P.n)} parcels with a build year. Click any point for details.`);
     if (S.splashOpen) S.playOnClose = true; else play();
   } catch (e) {
     if (token === loadToken && e.message !== "cancelled") setStatus(`Couldn't load ${label}: ${e.message}. Try again in a moment.`, true);
@@ -999,86 +1127,64 @@ async function loadAreas(areas) {
   }
 }
 
-function ingest(pts) {
-  if (!S.mapReady || !map.getSource("pts")) { S.pendingPts = pts; return; }   // map still loading; addLayers picks this up
-  S.ptsByYear = new Map(); S.counts = new Map(); S.cum = new Map();
-  const bb = [Infinity, Infinity, -Infinity, -Infinity];
-  const years = [];
-  for (const f of pts) {
-    const y = f.properties.y;
-    const [x, yy] = f.geometry.coordinates;
-    bb[0] = Math.min(bb[0], x); bb[1] = Math.min(bb[1], yy);
-    bb[2] = Math.max(bb[2], x); bb[3] = Math.max(bb[3], yy);
-    if (!S.ptsByYear.has(y)) S.ptsByYear.set(y, []);
-    S.ptsByYear.get(y).push(f);
-    S.counts.set(y, (S.counts.get(y) || 0) + 1);
-    years.push(y);
-  }
-  years.sort((a, b) => a - b);
+function ingest(P) {
+  if (!S.mapReady) { S.pendingP = P; return; }   // map still loading; addLayers picks this up
+  const n = P.n;
+  S.counts = new Map(); S.cum = new Map();
+  let ymin = Infinity, ymax = -Infinity;
+  for (let i = 0; i < n; i++) { const y = P.y[i]; S.counts.set(y, (S.counts.get(y) || 0) + 1); if (y < ymin) ymin = y; if (y > ymax) ymax = y; }
   // Start the timeline near the 0.5th percentile so a few 1600s outliers don't leave a long empty stretch.
-  const p = years[Math.floor(years.length * 0.005)] ?? years[0];
+  const yrs = [...S.counts.keys()].sort((a, b) => a - b), target = Math.floor(n * 0.005);
+  let acc = 0, p = yrs[0];
+  for (const y of yrs) { acc += S.counts.get(y); if (acc > target) { p = y; break; } }
   S.minY = Math.max(MIN_VALID, Math.floor(p / 10) * 10);
-  S.maxY = Math.max(MAX_YEAR, years[years.length - 1]);
+  S.maxY = Math.max(MAX_YEAR, ymax);
   let run = 0;
-  for (let y = years[0]; y <= S.maxY; y++) { run += S.counts.get(y) || 0; S.cum.set(y, run); }
+  for (let y = ymin; y <= S.maxY; y++) { run += S.counts.get(y) || 0; S.cum.set(y, run); }
   S.maxCount = 1;
   for (let y = S.minY; y <= S.maxY; y++) S.maxCount = Math.max(S.maxCount, S.counts.get(y) || 0);
-  S.firstYear = years[0];
+  S.firstYear = ymin;
   // Standing parcels by type at the end of each year
   const add = new Map();
-  for (const f of pts) {
-    const y = f.properties.y;
+  for (let i = 0; i < n; i++) {
+    const y = P.y[i];
     if (!add.has(y)) add.set(y, new Array(TYPES.length).fill(0));
-    add.get(y)[f.properties.k]++;
+    add.get(y)[P.k[i]]++;
   }
   S.typeCum = new Map();
   const runT = new Array(TYPES.length).fill(0);
-  for (let y = years[0]; y <= S.maxY; y++) {
+  for (let y = ymin; y <= S.maxY; y++) {
     const a = add.get(y); if (a) for (let k = 0; k < TYPES.length; k++) runT[k] += a[k];
     S.typeCum.set(y, runT.slice());
   }
   S.typeAdd = add;
   S.typesDirty = true;
 
-  S.pts = pts;
-  map.getSource("pts").setData({ type: "FeatureCollection", features: pts });
-  map.removeFeatureState({ source: "pts" });
-  S.shownY = S.firstYear - 1;
+  // GPU buffer: x, y (relative to the area's center, for float precision), year, type
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (let i = 0; i < n; i++) { const x = P.mx[i], y = P.my[i]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  P.ox = (x0 + x1) / 2; P.oy = (y0 + y1) / 2;
+  const g = new Float32Array(n * 4);
+  for (let i = 0; i < n; i++) { g[4 * i] = P.mx[i] - P.ox; g[4 * i + 1] = P.my[i] - P.oy; g[4 * i + 2] = P.y[i]; g[4 * i + 3] = P.k[i]; }
+  P.gpu = g;
+  S.P = P;
+  parcelLayer.upload();
+  const bb = P.bb;
   if (isFinite(bb[0])) {
     const mobile = innerWidth <= 640;
     map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], {
-      padding: mobile ? { top: 140, bottom: dockH() + 20, left: 20, right: 20 } : { top: 40, bottom: dockH() + 20, left: 380, right: $("types").classList.contains("open") ? 340 : 40 },
+      padding: mobile ? { top: document.querySelector('.card').getBoundingClientRect().bottom + 12, bottom: dockH() + 20, left: 20, right: 20 } : { top: 40, bottom: dockH() + 20, left: 380, right: $("types").classList.contains("open") ? 340 : 40 },
       duration: 1200
     });
   }
   const sl = $("slider");
   sl.min = S.minY; sl.max = S.maxY;
-  S.loaded = true; S.Y = null; S.glowT = null;
+  S.loaded = true; S.Y = null; S.noGlow = false;
   updateFilterBar();
   setT(S.minY);
 }
 
 // ---------- Time ----------
-function rebuildRecent(Y) {
-  const pts = [];
-  for (let y = Y - S.fade + 1; y <= Y; y++) {
-    const b = S.ptsByYear.get(y); if (b) pts.push(...b);
-  }
-  map.getSource("recent-pts").setData({ type: "FeatureCollection", features: pts });
-  S.glowOn = pts.length > 0;
-}
-
-function paintGlow(t) {
-  const F = S.fade;
-  const age = ["-", t, ["get", "y"]];
-  const color = ["interpolate", ["linear"], age, 0, "#fff4cf", 0.6, "#ffd166", F * 0.5, "#ff7a45", F, "#c2410c"];
-  const k = ["interpolate", ["linear"], age, 0, 1.7, 1, 1, F, 0.35];
-  map.setPaintProperty("glow-halo", "circle-color", color);
-  map.setPaintProperty("glow-halo", "circle-opacity", ["interpolate", ["linear"], age, 0, 0.85, F, 0]);
-  map.setPaintProperty("glow-halo", "circle-radius",
-    ["interpolate", ["linear"], ["zoom"], 9, ["*", 3, k], 12, ["*", 10, k], 15, ["*", 28, k], 18, ["*", 70, k]]);
-}
-
 function setT(t) {
   if (!S.loaded) return;
   t = Math.min(Math.max(t, S.minY), S.maxY + 0.999);
@@ -1086,8 +1192,7 @@ function setT(t) {
   const Y = Math.floor(t);
   if (Y !== S.Y) {
     S.Y = Y;
-    showUpTo(Y);
-    if (S.scrubbing) clearGlow(); else rebuildRecent(Y);
+    if (!S.scrubbing) S.noGlow = false;   // a new year brings the "just built" glow back
     $("year").textContent = Y;
     // With a filter on, count only parcels in that span so the number matches the map
     $("nCum").textContent = fmt(S.range
@@ -1097,28 +1202,13 @@ function setT(t) {
     updateEraLine(Y);
     $("slider").value = Y;
   }
-  // Glow paint is data-driven, so each update re-processes the glow points; cap it to quarter-year steps.
-  const gq = Math.floor(t * 4) / 4;
-  if (!S.scrubbing && gq !== S.glowT) { S.glowT = gq; paintGlow(gq); }
+  map.triggerRepaint();   // the parcel layer draws from S.t; nothing else to update
   drawHist();
   if (Y !== S.typesY) drawTypes();
 }
 
-// Turn on/off only the parcels whose build year falls between the old and new year.
-function showUpTo(Y) {
-  const on = Y > S.shownY;
-  const [a, b] = on ? [S.shownY + 1, Y] : [Y + 1, S.shownY];
-  for (let y = a; y <= b; y++) {
-    const arr = S.ptsByYear.get(y); if (!arr) continue;
-    for (const f of arr) map.setFeatureState({ source: "pts", id: f.properties.id }, { on });
-  }
-  S.shownY = Y;
-}
-function clearGlow() {
-  if (!S.glowOn) return;
-  S.glowOn = false;
-  map.getSource("recent-pts").setData(EMPTY);
-}
+// Hide the glow until the next year change (used after jumping to a filtered span, and while scrubbing).
+function clearGlow() { S.noGlow = true; map.triggerRepaint(); }
 
 // Dragging the slider/histogram: coalesce to one update per frame and skip the glow until the drag settles.
 let scrubRaf = 0, scrubTimer = 0, scrubTarget = 0;
@@ -1492,8 +1582,40 @@ if (matchMedia("(prefers-reduced-motion: reduce)").matches) $("speed").value = "
 </script>
 
 <script>
-(function(){var c=document.querySelector('.card'),b=document.getElementById('infoBtn');if(!c||!b)return;
-b.addEventListener('click',function(){var o=c.classList.toggle('open');b.setAttribute('aria-expanded',o);b.textContent=o?'Hide info':'Legend & info';});})();
+// Panel toggles: "Legend & info" (phones) expands the card; "Hide" collapses it to a bar; "Less" compacts the timeline (phones).
+(function () {
+  var c = document.querySelector(".card"), info = document.getElementById("infoBtn"), min = document.getElementById("minBtn");
+  var dock = document.querySelector(".dock"), dmin = document.getElementById("dockMin");
+  var KEY = "ctBuiltOverTime.panelMin", DKEY = "ctBuiltOverTime.dockMin", phone = matchMedia("(max-width:640px)").matches;
+  function get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function put(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function setMin(on, save) {
+    c.classList.toggle("min", on);
+    if (on) { c.classList.remove("open"); info.setAttribute("aria-expanded", false); info.textContent = "Legend & info"; }
+    min.setAttribute("aria-expanded", !on);
+    min.title = on ? "Show the panel" : "Hide the panel to see more of the map";
+    min.querySelector(".lbl").textContent = on ? "Show" : "Hide";
+    min.querySelector("i").textContent = on ? "▾" : "▴";
+    if (save) put(KEY, on ? "1" : "0");
+  }
+  function setDockMin(on, save) {
+    dock.classList.toggle("min", on);
+    dmin.setAttribute("aria-expanded", !on);
+    dmin.textContent = on ? "More ▴" : "Less ▾";
+    if (save) put(DKEY, on ? "1" : "0");
+    window.dispatchEvent(new Event("resize"));   // the chart redraws at its new size when shown again
+  }
+  info.addEventListener("click", function () {
+    var o = c.classList.toggle("open");
+    info.setAttribute("aria-expanded", o); info.textContent = o ? "Hide info" : "Legend & info";
+  });
+  min.addEventListener("click", function () { setMin(!c.classList.contains("min"), true); });
+  dmin.addEventListener("click", function () { setDockMin(!dock.classList.contains("min"), true); });
+  // Phones start with the panel collapsed so the map is visible; afterwards the last choice is remembered.
+  var saved = get(KEY);
+  setMin(saved === null ? phone : saved === "1", false);
+  if (phone && get(DKEY) === "1") setDockMin(true, false);
+})();
 </script>
 </body>
 </html>
