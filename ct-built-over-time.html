@@ -58,12 +58,16 @@ button.primary{background:var(--brand-blue);color:#fff;border-color:var(--brand-
 #status.err{color:#ff8a7a}
 .legend{display:grid;gap:6px;font-size:12px;color:var(--muted)}
 .ramp{height:8px;border-radius:4px}
-.ramp.glow{background:linear-gradient(90deg,var(--flash),#ffd166 20%,#ff7a45 60%,rgba(194,65,12,0))}
-.dec-legend{display:grid;grid-template-columns:repeat(7,1fr);gap:4px 2px;font:10px/1.2 var(--f-mono)}
-.dec-legend span{display:block;height:10px;border-radius:2px;margin-bottom:2px}
+/* Decade legend: rows = centuries, columns = decades 00-90 */
+.dec-legend{display:grid;grid-template-columns:44px repeat(10,1fr);gap:3px 2px;align-items:center;font:10px/1.2 var(--f-mono)}
+.dec-legend .dl-t{font-size:9px;color:var(--muted);text-align:center}
+.dec-legend .dl-c{font:600 10.5px/1.2 var(--f-mono);text-align:left;padding:2px 3px}
+.dec-legend .dl-s{padding:1px;min-height:0}
+.dec-legend .dl-s span{display:block;height:14px;border-radius:2px}
+/* On the light basemap the swatches sit on a light strip, so they look the way they do on the map */
+.dec-legend.on-light .dl-s{background:#f2f2f0;border-radius:3px;padding:2px}
 /* Decade and era filters: each legend item is a toggle button */
 .dec-legend button,.era-chips button{font:inherit;color:inherit;background:none;border:1px solid transparent;border-radius:4px;cursor:pointer;min-height:0}
-.dec-legend button{padding:2px 2px 1px;text-align:left}
 .dec-legend button:hover,.era-chips button:hover{border-color:var(--rule);color:#fff}
 .dec-legend button[aria-pressed="true"],.era-chips button[aria-pressed="true"]{border-color:var(--brand-green);color:#fff;background:rgba(118,176,83,.14)}
 .filtering .dec-legend button[aria-pressed="false"],.filtering .era-chips button[aria-pressed="false"]{opacity:.5}
@@ -318,10 +322,7 @@ h1{color:#fff}
   </div>
   <div id="status" role="status">Starting…</div>
   <div class="legend">
-    <div>Just built</div>
-    <div class="ramp glow"></div>
-    <div class="ramp-labels"><span>this year</span><span id="fadeLbl">+6 yrs</span></div>
-    <div>Decade built <span class="legend-hint">· click one to show only it</span></div>
+    <div>Decade built <span class="legend-hint">· click a decade or century to show only it</span></div>
     <div class="dec-legend" id="decLegend" role="group" aria-label="Show only one decade"></div>
     <div>Era <span class="legend-hint">· click one to show only it</span></div>
     <div class="era-chips" id="eraChips" role="group" aria-label="Show only one era"></div>
@@ -372,14 +373,6 @@ h1{color:#fff}
         </select>
       </label>
       <button type="button" id="typesBtn" aria-controls="types" aria-expanded="true">Home types</button>
-      <label>Glow lasts
-        <select id="fade">
-          <option value="3">3 yrs</option>
-          <option value="6" selected>6 yrs</option>
-          <option value="10">10 yrs</option>
-          <option value="20">20 yrs</option>
-        </select>
-      </label>
     </div>
   </div>
 </section>
@@ -401,7 +394,7 @@ h1{color:#fff}
     <h3>How to use it</h3>
     <ol class="steps">
       <li><b>Pick a place.</b> Choose a town or one of the nine planning regions and the map loads it. Use <b>+ Add another…</b> to put several towns or regions on the map together, and the × on each tag to remove one.</li>
-      <li><b>Move through time.</b> Press <b>Play</b>, or drag the slider or the bar chart along the bottom to jump to any year. New buildings flash orange, then settle into their decade color. Shaded bands on the timeline mark key eras in Connecticut housing, orange markers flag turning points, and a caption explains what was happening.</li>
+      <li><b>Move through time.</b> Press <b>Play</b>, or drag the slider or the bar chart along the bottom to jump to any year. Each dot takes its decade's color: every century has its own hue (1700s magenta, 1800s olive, 1900s blue, 2000s orange) that gets lighter decade by decade. Shaded bands on the timeline mark key eras in Connecticut housing, orange markers flag turning points, and a caption explains what was happening.</li>
       <li><b>Focus on one decade or era.</b> Click a decade or era in the legend, an era name on the timeline, or the era caption, and the map shows only what was built then and pauses. Press <b>Play span</b> to watch just that period, or <b>Show all</b> to go back.</li>
       <li><b>Look closer.</b> Click any dot for its address, land use and living area.</li>
       <li><b>See it from the air.</b> Choose <b>Aerials</b> for historical aerial photos from 1934 to 2023, then turn on <b>Swipe to compare</b> and drag the divider to compare two years. Town and planning-region outlines can be turned on or off under Boundaries.</li>
@@ -437,16 +430,26 @@ const TOWN_ALIASES = { "Greenwich": ["Greenwhich"], "Deep River": ["Deep_river"]
 
 const TOWNS = ["Andover","Ansonia","Ashford","Avon","Barkhamsted","Beacon Falls","Berlin","Bethany","Bethel","Bethlehem","Bloomfield","Bolton","Bozrah","Branford","Bridgeport","Bridgewater","Bristol","Brookfield","Brooklyn","Burlington","Canaan","Canterbury","Canton","Chaplin","Cheshire","Chester","Clinton","Colchester","Colebrook","Columbia","Cornwall","Coventry","Cromwell","Danbury","Darien","Deep River","Derby","Durham","East Granby","East Haddam","East Hampton","East Hartford","East Haven","East Lyme","East Windsor","Eastford","Easton","Ellington","Enfield","Essex","Fairfield","Farmington","Franklin","Glastonbury","Goshen","Granby","Greenwich","Griswold","Groton","Guilford","Haddam","Hamden","Hampton","Hartford","Hartland","Harwinton","Hebron","Kent","Killingly","Killingworth","Lebanon","Ledyard","Lisbon","Litchfield","Lyme","Madison","Manchester","Mansfield","Marlborough","Meriden","Middlebury","Middlefield","Middletown","Milford","Monroe","Montville","Morris","Naugatuck","New Britain","New Canaan","New Fairfield","New Hartford","New Haven","New London","New Milford","Newington","Newtown","Norfolk","North Branford","North Canaan","North Haven","North Stonington","Norwalk","Norwich","Old Lyme","Old Saybrook","Orange","Oxford","Plainfield","Plainville","Plymouth","Pomfret","Portland","Preston","Prospect","Putnam","Redding","Ridgefield","Rocky Hill","Roxbury","Salem","Salisbury","Scotland","Seymour","Sharon","Shelton","Sherman","Simsbury","Somers","South Windsor","Southbury","Southington","Sprague","Stafford","Stamford","Sterling","Stonington","Stratford","Suffield","Thomaston","Thompson","Tolland","Torrington","Trumbull","Union","Vernon","Voluntown","Wallingford","Warren","Washington","Waterbury","Waterford","Watertown","West Hartford","West Haven","Westbrook","Weston","Westport","Wethersfield","Willington","Wilton","Winchester","Windham","Windsor","Windsor Locks","Wolcott","Woodbridge","Woodbury","Woodstock"];
 
-// Decade colors for built parcels: pre-1900, then 1900s through 2020s (sequential, old = deep indigo, new = orange)
+// Decade colors: each century has its own hue (1700s magenta, 1800s olive, 1900s blue, 2000s orange) and its
+// decades step from darker (early) to lighter (late). Neighbouring centuries alternate warm/cool so they stay
+// distinct for colour-blind viewers; checked with the dataviz palette validator on both basemaps.
+// 33 classes: 1700s (incl. anything earlier) ... 1990s, 2000s, 2010s, 2020s.
 const PALETTES = {
-  // light basemap: deep indigo (old) to orange (new)
-  light: ["#0d0887","#2f0596","#4903a0","#6300a7","#7a02a8","#8f0da4","#a51f99","#b6308b","#c6417d","#d5536f","#e16462","#eb7655","#f58b47","#fb9f3a"],
-  // dark basemap / imagery: purple (old) to yellow (new), so old parcels don't vanish into the background
-  dark:  ["#8808a6","#9c179e","#ad2793","#bd3786","#ca457a","#d6556d","#e26561","#eb7655","#f3874a","#f99a3e","#fdae32","#fdc328","#fada24","#f3f027"]
+  light: ["#712482","#782c89","#803491","#873b98","#8f43a0","#974aa8","#9e51b0","#a659b8","#ae60c0","#b668c8",
+          "#465400","#4d5c00","#536300","#596a00","#607200","#667900","#6d8100","#748900","#7a9100","#819800",
+          "#00537c","#005a86","#006190","#00689a","#006fa5","#0077b0","#007eba","#0086c5","#008ed0","#0095db",
+          "#852b00","#b4410d","#da6438"],
+  // dark basemap / imagery / aerials: same hues, lighter so early decades don't sink into the background
+  dark:  ["#a95cbb","#b264c4","#bb6ccd","#c475d6","#cd7edf","#d686e8","#e08ff2","#e998fb","#eea5ff","#f1b4ff",
+          "#768c00","#7e9400","#859e00","#8da70b","#96af1f","#9eb82d","#a7c139","#afca44","#b8d34e","#c1dd59",
+          "#0089c9","#0092d6","#009ae2","#00a3ef","#11acfb","#38b5ff","#58beff","#71c6ff","#87ceff","#9cd6ff",
+          "#cc572a","#f87e53","#ffbba4"]
 };
 let DEC_COLORS = PALETTES.light;
-const DEC_LABELS = ["<1900","1900s","1910s","1920s","1930s","1940s","1950s","1960s","1970s","1980s","1990s","2000s","2010s","2020s"];
-const decIdx = y => y < 1900 ? 0 : Math.min(DEC_COLORS.length - 1, Math.floor((y - 1900) / 10) + 1);
+const NDEC = 33;
+const DEC_LABELS = Array.from({ length: NDEC }, (_, i) => `${1700 + i * 10}s`);
+const CENTURIES = [{ name: "1700s", i0: 0, n: 10 }, { name: "1800s", i0: 10, n: 10 }, { name: "1900s", i0: 20, n: 10 }, { name: "2000s", i0: 30, n: 3 }];
+const decIdx = y => y < 1700 ? 0 : Math.min(NDEC - 1, Math.floor((y - 1700) / 10));
 const eraColor = y => DEC_COLORS[decIdx(y)];
 // Home types, classified from the free-text State_Use_Description (it varies by town).
 // Order = stack order (bottom to top); colors validated as a set on the panel's navy surface.
@@ -515,9 +518,11 @@ function fitEraNote() {
 
 // ---------- Decade / era filter ----------
 // S.range = { a, b, key, label } shows only parcels built a..b; the timeline pauses at the end of that span.
-const decRange = i => i === 0 ? { a: MIN_VALID, b: 1899 } : { a: 1890 + i * 10, b: i === DEC_LABELS.length - 1 ? 9999 : 1899 + i * 10 };
+const decRange = i => ({ a: i === 0 ? MIN_VALID : 1700 + i * 10, b: i === NDEC - 1 ? 9999 : 1709 + i * 10 });
+const cenRange = c => ({ a: c === 0 ? MIN_VALID : 1700 + c * 100, b: c === CENTURIES.length - 1 ? 9999 : 1799 + c * 100 });
 function rangeFor(kind, i) {
-  if (kind === "dec") { const r = decRange(i); return { ...r, key: "dec" + i, label: DEC_LABELS[i] === "<1900" ? "Built before 1900" : `Built in the ${DEC_LABELS[i]}` }; }
+  if (kind === "dec") return { ...decRange(i), key: "dec" + i, label: i === 0 ? "Built before 1710" : `Built in the ${DEC_LABELS[i]}` };
+  if (kind === "cen") return { ...cenRange(i), key: "cen" + i, label: i === 0 ? "Built before 1800" : i === CENTURIES.length - 1 ? "Built 2000 or later" : `Built ${1700 + i * 100}–${1799 + i * 100}` };
   const e = ERAS[i];
   return { a: e.from <= 1600 ? MIN_VALID : e.from, b: e.to, key: "era" + i, label: `${e.name} (${eraYears(e)})` };
 }
@@ -537,7 +542,7 @@ function setTypes(k) {
   applyRangeFilter();
   S.typesDirty = true; drawTypes();
   updateFilterBar();
-  if (S.loaded) { S.Y = null; S.glowT = null; setT(S.t); }
+  if (S.loaded) { S.Y = null; setT(S.t); }
 }
 // The banner in the dock describes whatever filters are on and offers Play span / Show all.
 function updateFilterBar() {
@@ -558,7 +563,7 @@ function setRange(r) {
   if (r && S.range && r.key === S.range.key) r = null;     // clicking the active filter again clears it
   S.range = r;
   document.body.classList.toggle("filtering", !!r);
-  document.querySelectorAll("#decLegend button").forEach(b => b.setAttribute("aria-pressed", !!r && r.key === "dec" + b.dataset.d));
+  document.querySelectorAll("#decLegend button").forEach(b => b.setAttribute("aria-pressed", !!r && r.key === (b.dataset.c != null ? "cen" + b.dataset.c : "dec" + b.dataset.d)));
   document.querySelectorAll("#eraChips button").forEach(b => b.setAttribute("aria-pressed", !!r && r.key === "era" + b.dataset.e));
   applyRangeFilter();
   updateFilterBar();
@@ -566,12 +571,11 @@ function setRange(r) {
   pause();
   if (r) {
     // Jump to the end of the span so every parcel in it is on the map, settled into its decade color
-    S.Y = null; setT(rangeEnd()); clearGlow();
+    S.Y = null; setT(rangeEnd());
   } else {
-    S.Y = null; S.glowT = null; setT(S.t);
+    S.Y = null; setT(S.t);
   }
 }
-const decStep = () => ["step", ["get", "y"], DEC_COLORS[0], ...DEC_COLORS.slice(1).flatMap((c, i) => [1900 + i * 10, c])];
 
 // ---------- Basemaps ----------
 const BASEMAPS = {
@@ -656,7 +660,7 @@ const dockH = () => document.querySelector(".dock").offsetHeight;
 new ResizeObserver(() => document.documentElement.style.setProperty("--dock-h", dockH() + "px")).observe(document.querySelector(".dock"));
 
 const S = {
-  t: null, Y: null, playing: false, speed: 3, fade: 6,
+  t: null, Y: null, playing: false, speed: 3,
   minY: 1700, maxY: MAX_YEAR,
   areas: [],
   counts: new Map(), cum: new Map(), maxCount: 1, loaded: false,
@@ -669,7 +673,7 @@ try {
 } catch (e) {}
 
 // ---------- Parcel points: one small WebGL layer ----------
-// Every parcel sits in one GPU buffer (x, y, year, type). The current time, the "just built" glow and the
+// Every parcel sits in one GPU buffer (x, y, year, type). The current time and the
 // decade/era and home-type filters are shader uniforms, so playback is one repaint per frame and memory stays
 // at one compact copy of the data (a GeoJSON source keeps several copies per zoom level in map workers).
 const mercX = lng => (180 + lng) / 360;
@@ -681,44 +685,31 @@ const lerpStops = (z, st) => {
   return st[st.length - 1][1];
 };
 const DOT_R = [[8, 1.4], [11, 2.4], [14, 4.5], [17, 8]];      // dot radius (px) by zoom
-const HALO_R = [[9, 3], [12, 10], [15, 28], [18, 70]];        // glow radius (px) by zoom
 const PARCEL_VS = `
 precision highp float;
 attribute vec2 a_pos; attribute float a_year; attribute float a_k;
 uniform mat4 u_matrix;
-uniform float u_t, u_fade, u_r, u_halo, u_glow, u_pass, u_dpr, u_maxPt;
+uniform float u_t, u_r, u_dpr;
 uniform vec2 u_range;
 uniform float u_tmask[6];
-uniform vec3 u_pal[14];
-varying vec4 v_color; varying float v_blur;
-void hide() { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; }
+uniform vec3 u_pal[${NDEC}];
+varying vec3 v_color;
 void main() {
-  if (a_year > floor(u_t) || a_year < u_range.x || a_year > u_range.y || u_tmask[int(a_k + 0.5)] < 0.5) { hide(); return; }
-  gl_Position = u_matrix * vec4(a_pos, 0.0, 1.0);
-  float age = u_t - a_year;
-  if (u_pass < 0.5) {
-    // Glow: orange flare that fades and shrinks over the "Glow lasts" years
-    if (u_glow < 0.5 || age < 0.0 || age >= u_fade) { hide(); return; }
-    float k = age < 1.0 ? mix(1.7, 1.0, age) : mix(1.0, 0.35, (age - 1.0) / max(u_fade - 1.0, 0.001));
-    float op = 0.85 * (1.0 - age / u_fade), h = u_fade * 0.5;
-    vec3 c0 = vec3(1.0, 0.957, 0.812), c1 = vec3(1.0, 0.82, 0.4), c2 = vec3(1.0, 0.478, 0.271), c3 = vec3(0.761, 0.255, 0.047);
-    vec3 c = age < 0.6 ? mix(c0, c1, age / 0.6) : age < h ? mix(c1, c2, (age - 0.6) / max(h - 0.6, 0.001)) : mix(c2, c3, (age - h) / max(u_fade - h, 0.001));
-    v_color = vec4(c * op, op); v_blur = 1.0;
-    gl_PointSize = min(2.0 * u_halo * k * u_dpr, u_maxPt);
-  } else {
-    float d = a_year < 1900.0 ? 0.0 : min(13.0, floor((a_year - 1900.0) / 10.0) + 1.0);
-    v_color = vec4(u_pal[int(d)] * 0.9, 0.9); v_blur = 0.0;
-    gl_PointSize = 2.0 * u_r * u_dpr + 1.0;
+  if (a_year > floor(u_t) || a_year < u_range.x || a_year > u_range.y || u_tmask[int(a_k + 0.5)] < 0.5) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; return;
   }
+  gl_Position = u_matrix * vec4(a_pos, 0.0, 1.0);
+  float d = a_year < 1700.0 ? 0.0 : min(${NDEC - 1}.0, floor((a_year - 1700.0) / 10.0));
+  v_color = u_pal[int(d)];
+  gl_PointSize = 2.0 * u_r * u_dpr + 1.0;
 }`;
 const PARCEL_FS = `
 precision mediump float;
-varying vec4 v_color; varying float v_blur;
+varying vec3 v_color;
 void main() {
-  float d = length(gl_PointCoord - 0.5) * 2.0;
-  float a = v_blur > 0.5 ? 1.0 - smoothstep(0.0, 1.0, d) : 1.0 - smoothstep(0.82, 1.0, d);
+  float a = 0.9 * (1.0 - smoothstep(0.82, 1.0, length(gl_PointCoord - 0.5) * 2.0));
   if (a <= 0.0) discard;
-  gl_FragColor = v_color * a;
+  gl_FragColor = vec4(v_color * a, a);
 }`;
 const parcelLayer = {
   id: "parcels", type: "custom", renderingMode: "2d",
@@ -731,8 +722,7 @@ const parcelLayer = {
     this.gl = gl; this.prog = prog; this.buf = gl.createBuffer(); this.n = 0;
     this.L = {};
     for (const a of ["a_pos", "a_year", "a_k"]) this.L[a] = gl.getAttribLocation(prog, a);
-    for (const u of ["u_matrix", "u_t", "u_fade", "u_r", "u_halo", "u_glow", "u_pass", "u_dpr", "u_maxPt", "u_range", "u_tmask", "u_pal"]) this.L[u] = gl.getUniformLocation(prog, u);
-    this.maxPt = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)[1] || 64;
+    for (const u of ["u_matrix", "u_t", "u_r", "u_dpr", "u_range", "u_tmask", "u_pal"]) this.L[u] = gl.getUniformLocation(prog, u);
     this.upload();
   },
   upload() {
@@ -758,12 +748,8 @@ const parcelLayer = {
     gl.uniformMatrix4fv(L.u_matrix, false, M);
     const z = map.getZoom(), r = S.range, T = S.types;
     gl.uniform1f(L.u_t, S.t);
-    gl.uniform1f(L.u_fade, S.fade);
     gl.uniform1f(L.u_r, lerpStops(z, DOT_R));
-    gl.uniform1f(L.u_halo, lerpStops(z, HALO_R));
-    gl.uniform1f(L.u_glow, S.noGlow || S.scrubbing ? 0 : 1);
     gl.uniform1f(L.u_dpr, devicePixelRatio || 1);
-    gl.uniform1f(L.u_maxPt, this.maxPt);
     gl.uniform2f(L.u_range, r ? r.a : -1e5, r ? r.b : 1e5);
     gl.uniform1fv(L.u_tmask, TYPES.map((_, k) => !T || T.has(k) ? 1 : 0));
     if (this.palFor !== DEC_COLORS) { this.pal = new Float32Array(DEC_COLORS.flatMap(hexRGB)); this.palFor = DEC_COLORS; }
@@ -773,8 +759,7 @@ const parcelLayer = {
     attr(L.a_pos, 2, 0); attr(L.a_year, 1, 8); attr(L.a_k, 1, 12);
     gl.disable(gl.DEPTH_TEST); gl.disable(gl.STENCIL_TEST);
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    if (!(S.noGlow || S.scrubbing)) { gl.uniform1f(L.u_pass, 0); gl.drawArrays(gl.POINTS, 0, this.n); }
-    gl.uniform1f(L.u_pass, 1); gl.drawArrays(gl.POINTS, 0, this.n);
+    gl.drawArrays(gl.POINTS, 0, this.n);
     for (const loc of [L.a_pos, L.a_year, L.a_k]) if (loc >= 0) gl.disableVertexAttribArray(loc);
   }
 };
@@ -1179,7 +1164,7 @@ function ingest(P) {
   }
   const sl = $("slider");
   sl.min = S.minY; sl.max = S.maxY;
-  S.loaded = true; S.Y = null; S.noGlow = false;
+  S.loaded = true; S.Y = null;
   updateFilterBar();
   setT(S.minY);
 }
@@ -1192,7 +1177,6 @@ function setT(t) {
   const Y = Math.floor(t);
   if (Y !== S.Y) {
     S.Y = Y;
-    if (!S.scrubbing) S.noGlow = false;   // a new year brings the "just built" glow back
     $("year").textContent = Y;
     // With a filter on, count only parcels in that span so the number matches the map
     $("nCum").textContent = fmt(S.range
@@ -1207,10 +1191,7 @@ function setT(t) {
   if (Y !== S.typesY) drawTypes();
 }
 
-// Hide the glow until the next year change (used after jumping to a filtered span, and while scrubbing).
-function clearGlow() { S.noGlow = true; map.triggerRepaint(); }
-
-// Dragging the slider/histogram: coalesce to one update per frame and skip the glow until the drag settles.
+// Dragging the slider/histogram: coalesce to one update per frame.
 let scrubRaf = 0, scrubTimer = 0, scrubTarget = 0;
 function scrubTo(t) {
   if (!S.loaded) return;
@@ -1219,7 +1200,7 @@ function scrubTo(t) {
   scrubTarget = t;
   if (!scrubRaf) scrubRaf = requestAnimationFrame(() => { scrubRaf = 0; setT(scrubTarget); });
   clearTimeout(scrubTimer);
-  scrubTimer = setTimeout(() => { S.scrubbing = false; S.Y = null; S.glowT = null; setT(S.t); }, 200);
+  scrubTimer = setTimeout(() => { S.scrubbing = false; S.Y = null; setT(S.t); }, 200);
 }
 
 let last = 0, raf = 0;
@@ -1321,13 +1302,9 @@ function drawHist() {
       const cs = cntY(y); if (!cs) continue;
       bh = Math.max(1, Math.sqrt(cs / S.maxCount) * ph);
     }
-    const age = S.t - y;
-    if (S.range && (y < S.range.a || y > S.range.b)) { hctx.fillStyle = "rgba(142,152,176,.12)"; }
-    else if (age < 0) { hctx.fillStyle = "rgba(142,152,176,.22)"; }
-    else if (age < S.fade) {
-      const a = 1 - age / S.fade;
-      hctx.fillStyle = `rgba(255,${Math.round(150 + 90 * a)},${Math.round(70 + 130 * a * a)},${0.45 + 0.55 * a})`;
-    } else hctx.fillStyle = eraColor(y);
+    if (S.range && (y < S.range.a || y > S.range.b)) hctx.fillStyle = "rgba(142,152,176,.12)";
+    else if (y > S.t) hctx.fillStyle = "rgba(142,152,176,.22)";
+    else hctx.fillStyle = eraColor(y);
     hctx.fillRect(bx, top + ph - bh, bwid, bh);
   }
 
@@ -1382,10 +1359,16 @@ hist.addEventListener("keydown", e => {
 addEventListener("resize", drawHist);
 
 // ---------- Legend ----------
+// One row per century: its label (a button for the whole century) and its decade swatches, darker to lighter.
 function renderDecLegend() {
-  const on = i => !!S.range && S.range.key === "dec" + i;
-  $("decLegend").innerHTML = DEC_COLORS.map((c, i) =>
-    `<button type="button" data-d="${i}" aria-pressed="${on(i)}" title="Show only parcels ${i ? "built in the " + DEC_LABELS[i] : "built before 1900"}"><span style="background:${c}"></span>${DEC_LABELS[i]}</button>`).join("");
+  const on = key => !!S.range && S.range.key === key;
+  $("decLegend").classList.toggle("on-light", DEC_COLORS === PALETTES.light);
+  const ticks = `<span class="dl-c"></span>` + Array.from({ length: 10 }, (_, i) => `<span class="dl-t">${String(i * 10).padStart(2, "0")}</span>`).join("");
+  $("decLegend").innerHTML = ticks + CENTURIES.map((c, ci) =>
+    `<button type="button" class="dl-c" data-c="${ci}" aria-pressed="${on("cen" + ci)}" title="Show only parcels ${rangeFor("cen", ci).label.toLowerCase()}">${c.name}</button>` +
+    Array.from({ length: 10 }, (_, k) => k < c.n
+      ? `<button type="button" class="dl-s" data-d="${c.i0 + k}" aria-pressed="${on("dec" + (c.i0 + k))}" aria-label="${DEC_LABELS[c.i0 + k]}" title="Show only parcels ${rangeFor("dec", c.i0 + k).label.toLowerCase()}"><span style="background:${DEC_COLORS[c.i0 + k]}"></span></button>`
+      : `<span></span>`).join("")).join("");
 }
 renderDecLegend();
 $("eraChips").innerHTML = ERAS.map((e, i) =>
@@ -1530,15 +1513,13 @@ $("eraLine").addEventListener("click", e => {
   const b = e.target.closest("[data-era]"); if (b) setRange(rangeFor("era", +b.dataset.era));
 });
 addEventListener("resize", fitEraNote);
-$("decLegend").addEventListener("click", e => { const b = e.target.closest("[data-d]"); if (b) setRange(rangeFor("dec", +b.dataset.d)); });
+$("decLegend").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  setRange(b.dataset.c != null ? rangeFor("cen", +b.dataset.c) : rangeFor("dec", +b.dataset.d));
+});
 $("eraChips").addEventListener("click", e => { const b = e.target.closest("[data-e]"); if (b) setRange(rangeFor("era", +b.dataset.e)); });
 $("slider").addEventListener("input", e => scrubTo(+e.target.value));
 $("speed").addEventListener("change", e => S.speed = +e.target.value);
-$("fade").addEventListener("change", e => {
-  S.fade = +e.target.value;
-  $("fadeLbl").textContent = `+${S.fade} yrs`;
-  if (S.loaded) { S.Y = null; S.glowT = null; setT(S.t); }
-});
 // ---------- Splash ----------
 const splash = $("splash"), SPLASH_KEY = "ctBuiltOverTime.hideSplash";
 function openSplash() {
