@@ -216,6 +216,21 @@ function parcelFlags(a){
   };
 }
 
+// The district's long name, when the zoning layer records one that says more than the code itself.
+function zoneLongName(cls, desc){
+  const c = (cls || '').trim(), d = (desc || '').trim();
+  const norm = s => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return d && norm(d) !== norm(c) ? d : '';
+}
+// "R-1 — Single-Family Residential"; just the code when there is no long name.
+function zoneTitle(cls, desc){
+  const c = (cls || '').trim(), d = zoneLongName(cls, desc);
+  if (!c) return d || 'Unlabeled district';
+  if (!d) return c;
+  // some towns already repeat the code inside the description ("C-1 General Commercial District")
+  return d.toUpperCase().startsWith(c.toUpperCase() + ' ') ? c + ' — ' + d.slice(c.length).trim() : c + ' — ' + d;
+}
+
 /* ============================== geometry ============================== */
 function ringBBox(coords, bb){
   for (const p of coords){ if(p[0]<bb[0])bb[0]=p[0]; if(p[1]<bb[1])bb[1]=p[1]; if(p[0]>bb[2])bb[2]=p[0]; if(p[1]>bb[3])bb[3]=p[1]; }
@@ -386,8 +401,8 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
   };
 
   const map = L.map('map', {preferCanvas: true}).setView([41.52, -72.12], 10);
-  const light = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxZoom: 20, maxNativeZoom: 16, attribution: 'Basemap &copy; Esri, HERE, Garmin, OpenStreetMap contributors'}).addTo(map);
-  const imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom: 20, maxNativeZoom: 19, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics'});
+  const light = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxZoom: 20, maxNativeZoom: 16, attribution: 'Basemap &copy; Esri, HERE, Garmin, OpenStreetMap contributors'});
+  const imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom: 20, maxNativeZoom: 19, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics'}).addTo(map);
   map.createPane('zoning').style.zIndex = 350;
   map.createPane('towns').style.zIndex = 360;
   map.createPane('parcels').style.zIndex = 420;
@@ -396,15 +411,15 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
 
   let zoneIndex = [], parcels = [], filtered = [], zoningLayer = null, townsLayer = null, parcelLayer = null;
   const townBounds = {}, layerById = new Map();
-  const state = {cats: new Set(CATS.filter(c => c.id !== 'other' && c.id !== 'open').map(c => c.id)), zoningOpacity: 0.35};
+  const state = {cats: new Set(CATS.filter(c => c.id !== 'other' && c.id !== 'open').map(c => c.id)), zoningOpacity: 0.2};
 
   // map controls: basemap + zoning opacity
   const ctl = L.control({position: 'topright'});
   ctl.onAdd = () => {
     const d = L.DomUtil.create('div', 'mapctl');
-    d.innerHTML = '<label class="check"><input type="checkbox" id="img"> Aerial imagery</label>' +
+    d.innerHTML = '<label class="check"><input type="checkbox" id="img" checked> Aerial imagery</label>' +
       '<label class="check"><input type="checkbox" id="zshow" checked> Zoning districts</label>' +
-      '<label for="zop" style="margin-top:4px">Zoning opacity</label><input type="range" id="zop" min="0" max="80" value="35">';
+      '<label for="zop" style="margin-top:4px">Zoning opacity</label><input type="range" id="zop" min="0" max="80" value="20">';
     L.DomEvent.disableClickPropagation(d); L.DomEvent.disableScrollPropagation(d);
     return d;
   };
@@ -468,7 +483,7 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
     const sale = p.salePrice > 0 ? fmt$(p.salePrice) + (p.saleDate ? ' (' + esc(p.saleDate) + ')' : '') : esc(p.saleDate);
     return '<div class="pop"><h3>' + esc(p.address) + '</h3><div class="sub">' + esc(p.town) + (p.parcelId ? ' · parcel ' + esc(p.parcelId) : '') + '</div>' +
       '<span class="pill" style="background:' + c.color + '33;border-color:' + c.color + '">' + esc(c.label) + '</span> <span class="pill">' + (p.kind === 'vacant' ? 'Vacant' : 'Underused') + '</span><table style="margin-top:6px">' +
-      row('Mapped zoning', p.zoneCls ? esc(p.zoneCls) + (p.zoneDesc && p.zoneDesc !== p.zoneCls ? ' – ' + esc(p.zoneDesc) : '') : (p.geometry ? 'No district at parcel center' : '')) +
+      row('Mapped zoning', p.zoneCls || p.zoneDesc ? esc(zoneTitle(p.zoneCls, p.zoneDesc)) : (p.geometry ? 'No district at parcel center' : '')) +
       row('Assessor zone', esc(p.camaZone)) +
       row('Assessor use', esc(p.useDesc) + (p.use ? ' (' + esc(p.use) + ')' : '')) +
       row('Acres', p.acres ? fmtA(p.acres) : '') +
@@ -544,7 +559,7 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
   map.on('click', e => {
     const z = zoneAt(zoneIndex, e.latlng.lng, e.latlng.lat); if (!z) return;
     const c = CAT[z.cat];
-    L.popup().setLatLng(e.latlng).setContent('<div class="pop"><h3>' + esc(z.cls || 'Unlabeled district') + '</h3><div class="sub">' + esc(z.desc && z.desc !== z.cls ? z.desc : 'Zoning district') + '</div><span class="pill" style="background:' + c.color + '33;border-color:' + c.color + '">' + esc(c.label) + '</span></div>').openOn(map);
+    L.popup().setLatLng(e.latlng).setContent('<div class="pop"><h3>' + esc(zoneTitle(z.cls, z.desc)) + '</h3><div class="sub">' + (zoneLongName(z.cls, z.desc) ? 'Zoning district' : 'Zoning district · no long name recorded for this code') + '</div><span class="pill" style="background:' + c.color + '33;border-color:' + c.color + '">' + esc(c.label) + '</span></div>').openOn(map);
   });
 
   $('csv').onclick = () => {
