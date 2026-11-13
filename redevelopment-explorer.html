@@ -56,6 +56,8 @@
   .mapctl{background:#fff;padding:8px 10px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:12px;min-width:170px}
   .mapctl label{color:var(--ink)}
   .mapctl input[type=range]{width:100%}
+  .mapctl .lg{display:flex;align-items:center;gap:6px;margin:2px 0 2px 20px;font-size:11px;color:var(--muted)}
+  .mapctl .lg i{display:inline-block;width:18px;height:0;border-top:3px solid}
   .pop h3{margin:0 0 2px;font-size:14px}
   .pop .sub{color:var(--muted);font-size:12px;margin-bottom:6px}
   .pop table{border-collapse:collapse;font-size:12px}
@@ -100,6 +102,11 @@
         <div class="note">Each town's zoning districts are grouped into these general classes from the district code and description. Click anywhere on the map to see the exact district.</div>
       </section>
       <section>
+        <h2>How the assessor codes vacant land</h2>
+        <div id="vcats"></div>
+        <div class="note">Towns code vacant land differently, so each vacant parcel is sorted by its assessor use code and description. Pick a town to see how that assessor's parcels fall. &ldquo;Not coded vacant&rdquo; means the record has land value and no building value but no vacant-land code.</div>
+      </section>
+      <section>
         <h2>Parcel filters</h2>
         <div class="row" style="margin-top:0">
           <div><label for="amin">Min acres</label><input id="amin" type="number" min="0" step="0.1" placeholder="0"></div>
@@ -113,9 +120,6 @@
             <option value="public">Public / tax-exempt</option>
           </select>
         </div>
-        <label class="check" style="margin-top:8px"><input id="unb" type="checkbox" checked> Hide vacant parcels coded unbuildable</label>
-        <label class="check"><input id="farm" type="checkbox" checked> Hide farm, forest &amp; conservation land</label>
-        <label class="check"><input id="ob" type="checkbox"> Vacant: only those with outbuildings / minor improvements</label>
       </section>
       <section>
         <h2>Summary of current selection</h2>
@@ -155,7 +159,9 @@ const URLS = {
   zoning:  SCCOG + 'Zoning_public_0cbc5bef4b974348a124240af384c110/FeatureServer/0',
   // Statewide parcel polygons with assessor (CAMA) attributes already joined.
   parcels: 'https://services3.arcgis.com/3FL1kr7L4LvwA2Kb/arcgis/rest/services/Connecticut_CAMA_and_Parcel_Layer/FeatureServer/0',
-  towns:   SCCOG + 'Web_Parcel_Layer/FeatureServer/2'   // town outlines only
+  towns:   SCCOG + 'Web_Parcel_Layer/FeatureServer/2',   // town outlines only
+  sewerAreas:  SCCOG + 'SewerConnectionOptions/FeatureServer/4',   // existing / proposed / desired / package service areas
+  sewerRoutes: SCCOG + 'SewerConnectionOptions/FeatureServer/2'    // potential connection routes
 };
 // Only parcels in the Southeastern CT planning region.
 const REGION_WHERE = "COG = 'Southeastern CT'";
@@ -165,7 +171,7 @@ const VACANT_SQL = "(UPPER(State_Use_Description) LIKE '%VAC%' OR Model IN ('0',
 const VACANT_WHERE = REGION_WHERE + ' AND ' + VACANT_SQL;
 // Built parcels whose appraised building value is below appraised land value (the slider narrows this further).
 const UNDERUSED_WHERE = REGION_WHERE + ' AND Appraised_Building > 0 AND Appraised_Land > 0 AND Appraised_Building < Appraised_Land AND NOT ' + VACANT_SQL + " AND (State_Use_Description IS NULL OR UPPER(State_Use_Description) NOT LIKE '%CONDO%')";
-const PARCEL_FIELDS = 'OBJECTID,Town_Name,Location,Parcel_ID,Parcel_Type,Owner,Assessed_Total,Assessed_Land,Appraised_Land,Appraised_Building,Appraised_Outbuilding,Land_Acres,Zone,State_Use,State_Use_Description,Sale_Price,Sale_Date,Shape__Area';
+const PARCEL_FIELDS = 'OBJECTID,Town_Name,Location,Parcel_ID,Parcel_Type,Owner,Assessed_Total,Assessed_Land,Appraised_Land,Appraised_Building,Appraised_Outbuilding,Land_Acres,Zone,State_Use,State_Use_Description,Model,Sale_Price,Sale_Date,Shape__Area';
 const TOWN_NAMES = ['Bozrah','Colchester','East Lyme','Franklin','Griswold','Groton','Lebanon','Ledyard','Lisbon','Montville','New London','North Stonington','Norwich','Preston','Salem','Sprague','Stonington','Waterford','Windham'];
 const SQFT_PER_ACRE = 43560;   // the layer's Shape__Area is in square feet (CT state plane)
 const CATS = [
@@ -214,6 +220,123 @@ function parcelFlags(a){
     isPublic: /EXEMPT|MUNICIPAL|\bMUN\b|STATE|FEDERAL|NON.?PROFIT|CHURCH|HSNG AUTH|TOWN/.test(d) || /^9\d/.test(u),
     outbuilding: Number(a.Appraised_Outbuilding) > 0 || /\bOB\b|IMP\b|IMPROV/.test(d)
   };
+}
+
+// How the assessor calls out a vacant parcel, normalised across the towns' different coding schemes:
+//  - 4-digit codes (most towns): 1300/3900/4400 developable, 1310/3910/4410 potentially developable, 1320/3920/4420 undevelopable
+//  - 3-digit codes (Groton): 130/131/132, 390/391/392, 440/441/442
+//  - broad classes (Bozrah, Franklin, Montville, North Stonington; Waterford similar): "Vacant Land", "Use Assessment", "Res Vacant"
+const VCATS = [
+  {id:'dev',     label:'Vacant / developable',                 on:true},
+  {id:'pot',     label:'Potentially developable',              on:true},
+  {id:'ob',      label:'Vacant with outbuildings',             on:true},
+  {id:'exempt',  label:'Exempt / public land',                 on:true},
+  {id:'undev',   label:'Undevelopable / unbuildable',          on:false},
+  {id:'farm',    label:'Farm, forest & open space',            on:false},
+  {id:'other',   label:'Other land-only codes',                on:false},
+  {id:'novalue', label:'Not coded vacant (no building value)', on:false}
+];
+const VCAT = Object.fromEntries(VCATS.map(v => [v.id, v]));
+function vacancyCategory(a){
+  const u = String(a.State_Use || '').trim().toUpperCase(), d = (a.State_Use_Description || '').toUpperCase();
+  if (/FOREST|TILLABLE|PASTURE|\b490\b|FARM|USE ASSESS|ORCHARD|WOODLAND|SWAMP|NURSERY|CNSERV|CONSERV|OPEN SPACE/.test(d) || /^[67]\d{2,3}[A-Z]?$/.test(u)) return 'farm';
+  if (/^9/.test(u) || /EXEMPT|MUNICIPAL|\bMUN\b|STATE|FEDERAL|U\. ?S\. GOV|NON.?PROFIT|CHURCH|CHARITABLE|RELIGIOUS|HSNG AUTH/.test(d)) return 'exempt';
+  if (/^106/.test(u) || /\bOBS?\b|W\/ ?OB|\bIMP\b|IMPROV/.test(d)) return 'ob';
+  if (/^(13|39|44)20$/.test(u) || /^(132|392|442)$/.test(u) || /UNB|ACLNUD|UNDEV|EXCESS|LAKE BOTTOM/.test(d)) return 'undev';
+  if (/^(13|39|44)10$/.test(u) || /^(131|391|441)$/.test(u) || /\bPOT\b|ACLNPO|POTDEV/.test(d)) return 'pot';
+  if (/^3030/.test(u)) return 'other';   // land accessory to a commercial use
+  if (/^(13|39|44)00$/.test(u) || /^(130|390|440)$/.test(u) || /VAC|DEVEL|ACLNDV|COMM LAND|IND LAND|IND'L LAND|RES LAND/.test(d)) return 'dev';
+  if (['0', '0.0', '00'].includes(String(a.Model == null ? '' : a.Model).trim())) return 'other';
+  return 'novalue';
+}
+
+/* ============================== sewer service ============================== */
+const SEWER_NEAR_FT = 500, SEWER_PROPOSED_FT = 1320;   // 500 ft of existing service; a quarter mile of proposed service
+function buildSewerIndex(areas, routes){
+  const idx = [];
+  for (const f of areas || []){
+    if (!f.geometry) continue;
+    idx.push({kind: f.properties.AV_LEGEND || 'Existing', name: (f.properties.Name || f.properties.Label || '').trim(), bb: geomBBox(f.geometry), polys: polys(f.geometry)});
+  }
+  for (const f of routes || []){
+    const g = f.geometry; if (!g) continue;
+    const lines = g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : [];
+    const bb = [Infinity, Infinity, -Infinity, -Infinity]; for (const l of lines) ringBBox(l, bb);
+    idx.push({kind: 'Route', name: (f.properties.Notes || '').trim(), bb, lines});
+  }
+  return idx;
+}
+// Distance in feet from point p to segment a-b, with degrees scaled to feet by fx, fy.
+function segDistFt(p, a, b, fx, fy){
+  const px = (p[0] - a[0]) * fx, py = (p[1] - a[1]) * fy, bx = (b[0] - a[0]) * fx, by = (b[1] - a[1]) * fy;
+  const len2 = bx * bx + by * by, t = len2 ? Math.max(0, Math.min(1, (px * bx + py * by) / len2)) : 0;
+  return Math.hypot(px - t * bx, py - t * by);
+}
+// Approximate distance in feet between a parcel (its vertices, pts, and polygons, ppolys) and one sewer feature.
+// 0 when they overlap; Infinity when farther than maxFt.
+function sewerDistance(item, pts, ppolys, maxFt, fx, fy){
+  const pbb = ringBBox(pts, [Infinity, Infinity, -Infinity, -Infinity]);
+  const ex = maxFt / fx, ey = maxFt / fy;
+  const x0 = pbb[0] - ex, y0 = pbb[1] - ey, x1 = pbb[2] + ex, y1 = pbb[3] + ey;
+  if (item.bb[0] > x1 || item.bb[2] < x0 || item.bb[1] > y1 || item.bb[3] < y0) return Infinity;
+  const rings = item.polys ? item.polys.flat() : item.lines;
+  if (item.polys){
+    for (const p of pts) for (const poly of item.polys) if (inPoly(p[0], p[1], poly)) return 0;
+  }
+  let best = Infinity;
+  for (const ring of rings){
+    for (let i = 0; i + 1 < ring.length; i++){
+      const a = ring[i], b = ring[i + 1];
+      if ((a[0] < x0 && b[0] < x0) || (a[0] > x1 && b[0] > x1) || (a[1] < y0 && b[1] < y0) || (a[1] > y1 && b[1] > y1)) continue;
+      // sewer vertex inside the parcel means they overlap
+      for (const pp of ppolys) if (inPoly(a[0], a[1], pp)) return 0;
+      for (const p of pts){ const d = segDistFt(p, a, b, fx, fy); if (d < best) best = d; }
+      // and the sewer vertex against the parcel's own edges
+      for (const pp of ppolys){ const r = pp[0]; for (let k = 0; k + 1 < r.length; k++){ const d = segDistFt(a, r[k], r[k + 1], fx, fy); if (d < best) best = d; } }
+    }
+  }
+  return best <= maxFt ? best : Infinity;
+}
+// Sewer status of a parcel geometry (or of a single point when geometry is null).
+function sewerStatus(index, geometry, pt){
+  const ppolys = polys(geometry);
+  let pts = []; for (const poly of ppolys) if (poly[0]) pts = pts.concat(poly[0]);
+  if (pts.length > 300){ const step = Math.ceil(pts.length / 300); pts = pts.filter((_, i) => i % step === 0); }
+  if (pt) pts.push(pt);
+  if (!pts.length) return null;
+  const fy = 364400, fx = 365220 * Math.cos(pts[0][1] * Math.PI / 180);
+  const nearest = (kinds, maxFt) => {
+    let best = null;
+    for (const it of index){
+      if (!kinds.includes(it.kind)) continue;
+      const d = sewerDistance(it, pts, ppolys, maxFt, fx, fy);
+      if (d !== Infinity && (!best || d < best.d)) best = {d, it};
+      if (d === 0) break;
+    }
+    return best;
+  };
+  const nm = it => it.name ? ' (' + it.name + ')' : '';
+  const ft = d => 'about ' + (Math.round(d / 10) * 10).toLocaleString('en-US') + ' ft away';
+  const e = nearest(['Existing', 'Package'], SEWER_NEAR_FT), p = nearest(['Proposed', 'Route'], SEWER_PROPOSED_FT), w = nearest(['Desired'], 0);
+  const out = {};
+  out.existingCode = !e ? 'No' : e.d === 0 ? 'In area' : 'Within 500 ft';
+  out.existing = !e ? 'Not within 500 ft of an existing sewer area'
+    : e.d === 0 ? 'In ' + (e.it.kind === 'Package' ? 'a package treatment plant service area' : 'an existing sewer service area') + nm(e.it)
+    : 'Within 500 ft of ' + (e.it.kind === 'Package' ? 'a package plant service area' : 'an existing sewer area') + nm(e.it) + ', ' + ft(e.d);
+  out.proposedCode = !p ? 'No' : (p.d === 0 && p.it.kind === 'Proposed') ? 'In area' : 'Within 1/4 mile';
+  out.proposed = !p ? 'Not within a quarter mile of proposed service'
+    : (p.d === 0 && p.it.kind === 'Proposed') ? 'In a proposed sewer service area' + nm(p.it)
+    : 'Within a quarter mile of ' + (p.it.kind === 'Route' ? 'a potential connection route' : 'a proposed sewer service area') + nm(p.it) + (p.d > 0 ? ', ' + ft(p.d) : '');
+  out.desired = w ? 'In an area where sewer is desired but not yet studied' + nm(w.it) : '';
+  return out;
+}
+async function loadSewer(){
+  const q = {f:'geojson', where:'1=1', outSR:'4326', geometryPrecision:'6'};
+  const [areas, routes] = await Promise.all([
+    arcQuery(URLS.sewerAreas, {...q, outFields:'AV_LEGEND,Name,Label', maxAllowableOffset:'0.00002'}),
+    arcQuery(URLS.sewerRoutes, {...q, outFields:'Notes,LengthMi'}).catch(() => ({features: []}))
+  ]);
+  return {areas: areas.features || [], routes: routes.features || []};
 }
 
 // The district's long name, when the zoning layer records one that says more than the code itself.
@@ -373,7 +496,7 @@ function buildParcels(features, zoneIndex, kind){
       geometry: f.geometry || null, pt,
       zoneCls: z ? z.cls : null, zoneDesc: z ? z.desc : null,
       cat: z ? z.cat : 'other',
-      unbuildable: kind === 'vacant' && flags.unbuildable, farmForest: flags.farmForest,
+      vcat: kind === 'vacant' ? vacancyCategory(a) : null, unbuildable: kind === 'vacant' && flags.unbuildable, farmForest: flags.farmForest,
       isPublic: flags.isPublic, outbuilding: flags.outbuilding
     };
     p.ppa = p.acres > 0 && p.landVal > 0 ? p.landVal / p.acres : null;
@@ -404,14 +527,24 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
   const light = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxZoom: 20, maxNativeZoom: 16, attribution: 'Basemap &copy; Esri, HERE, Garmin, OpenStreetMap contributors'});
   const imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom: 20, maxNativeZoom: 19, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics'}).addTo(map);
   map.createPane('zoning').style.zIndex = 350;
+  map.createPane('sewer').style.zIndex = 355;
   map.createPane('towns').style.zIndex = 360;
   map.createPane('parcels').style.zIndex = 420;
   const zoningRenderer = L.canvas({pane: 'zoning'}), parcelRenderer = L.canvas({pane: 'parcels', tolerance: 3});
-  map.attributionControl.addAttribution('Zoning: SCCOG · Parcels &amp; CAMA: Connecticut statewide layer');
+  map.attributionControl.addAttribution('Zoning &amp; sewer: SCCOG · Parcels &amp; CAMA: Connecticut statewide layer');
 
-  let zoneIndex = [], parcels = [], filtered = [], zoningLayer = null, townsLayer = null, parcelLayer = null;
+  let zoneIndex = [], parcels = [], filtered = [], zoningLayer = null, townsLayer = null, parcelLayer = null, sewerIndex = null, sewerLayer = null;
+  const sewerRenderer = L.canvas({pane: 'sewer'});
+  const SEWER_STYLE = {
+    Existing: {color: '#19b5ff', weight: 2, fillColor: '#19b5ff', fillOpacity: 0.18},
+    Package:  {color: '#ff8c1a', weight: 2, fillColor: '#ff8c1a', fillOpacity: 0.18},
+    Proposed: {color: '#00e5c8', weight: 2, dashArray: '6 4', fillColor: '#00e5c8', fillOpacity: 0.12},
+    Desired:  {color: '#ffffff', weight: 2, dashArray: '2 5', fillColor: '#ffffff', fillOpacity: 0.08}
+  };
+  // sewer status is worked out the first time a parcel needs it
+  const sewerOf = p => !sewerIndex ? null : (p.sewer || (p.sewer = sewerStatus(sewerIndex, p.geometry, p.pt)));
   const townBounds = {}, layerById = new Map();
-  const state = {cats: new Set(CATS.filter(c => c.id !== 'other' && c.id !== 'open').map(c => c.id)), zoningOpacity: 0.2};
+  const state = {cats: new Set(CATS.filter(c => c.id !== 'other' && c.id !== 'open').map(c => c.id)), zoningOpacity: 0.2, vcats: new Set(VCATS.filter(v => v.on).map(v => v.id))};
 
   // map controls: basemap + zoning opacity
   const ctl = L.control({position: 'topright'});
@@ -419,12 +552,16 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
     const d = L.DomUtil.create('div', 'mapctl');
     d.innerHTML = '<label class="check"><input type="checkbox" id="img" checked> Aerial imagery</label>' +
       '<label class="check"><input type="checkbox" id="zshow" checked> Zoning districts</label>' +
-      '<label for="zop" style="margin-top:4px">Zoning opacity</label><input type="range" id="zop" min="0" max="80" value="20">';
+      '<label for="zop" style="margin-top:4px">Zoning opacity</label><input type="range" id="zop" min="0" max="80" value="20">' +
+      '<label class="check" style="margin-top:6px"><input type="checkbox" id="sshow" checked> Sewer service</label>' +
+      '<div class="lg"><i style="border-color:#19b5ff"></i>Existing</div><div class="lg"><i style="border-color:#ff8c1a"></i>Package plant</div>' +
+      '<div class="lg"><i style="border-color:#00e5c8;border-top-style:dashed"></i>Proposed / route</div><div class="lg"><i style="border-color:#888;border-top-style:dotted"></i>Desired, not studied</div>';
     L.DomEvent.disableClickPropagation(d); L.DomEvent.disableScrollPropagation(d);
     return d;
   };
   ctl.addTo(map);
   $('img').onchange = e => { if (e.target.checked){ map.removeLayer(light); imagery.addTo(map); } else { map.removeLayer(imagery); light.addTo(map); } };
+  $('sshow').onchange = e => { if (!sewerLayer) return; e.target.checked ? sewerLayer.addTo(map) : map.removeLayer(sewerLayer); };
   $('zshow').onchange = e => { if (!zoningLayer) return; e.target.checked ? zoningLayer.addTo(map) : map.removeLayer(zoningLayer); };
   $('zop').oninput = e => { state.zoningOpacity = e.target.value / 100; if (zoningLayer) zoningLayer.setStyle(zoningStyle); };
 
@@ -439,7 +576,9 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
   $('town').innerHTML += TOWN_NAMES.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('');
   let t;
   $('town').onchange = () => { render(); zoomToSelection(); };
-  for (const id of ['own', 'unb', 'ob', 'farm', 'sort', 'kVac']) $(id).onchange = render;
+  $('vcats').innerHTML = VCATS.map(v => '<label class="check cat"><input type="checkbox" data-vcat="' + v.id + '"' + (state.vcats.has(v.id) ? ' checked' : '') + '>' + esc(v.label) + '<span class="n" id="vn-' + v.id + '"></span></label>').join('');
+  $('vcats').addEventListener('change', e => { const id = e.target.dataset.vcat; if (!id) return; e.target.checked ? state.vcats.add(id) : state.vcats.delete(id); render(); });
+  for (const id of ['own', 'sort', 'kVac']) $(id).onchange = render;
   $('ratio').oninput = e => { $('ratioV').textContent = e.target.value + '%'; clearTimeout(t); t = setTimeout(render, 150); };
   let underusedState = 'none';
   $('kUnd').onchange = async e => {
@@ -462,22 +601,24 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
   };
   for (const id of ['q', 'amin', 'amax']) $(id).oninput = () => { clearTimeout(t); t = setTimeout(render, 200); };
 
-  function applyFilters(ignoreCats){
+  function applyFilters(ignoreCats, ignoreVcats){
     const town = $('town').value, q = $('q').value.trim().toUpperCase(), own = $('own').value;
     const amin = parseFloat($('amin').value), amax = parseFloat($('amax').value);
-    const hideUnb = $('unb').checked, onlyOb = $('ob').checked, hideFarm = $('farm').checked;
     const showVac = $('kVac').checked, showUnd = $('kUnd').checked && underusedState === 'loaded', maxRatio = $('ratio').value / 100;
     return parcels.filter(p =>
       (p.kind === 'vacant' ? showVac : (showUnd && p.ratio <= maxRatio)) &&
       (!town || p.town === town) &&
       (ignoreCats || state.cats.has(p.cat)) &&
-      (p.kind !== 'vacant' || ((!hideUnb || !p.unbuildable) && (!onlyOb || p.outbuilding))) &&
-      (!hideFarm || !p.farmForest) &&
+      (p.kind !== 'vacant' || ignoreVcats || state.vcats.has(p.vcat)) &&
       (!own || (own === 'public') === p.isPublic) &&
       (isNaN(amin) || p.acres >= amin) && (isNaN(amax) || p.acres <= amax) &&
       (!q || p.hay.includes(q)));
   }
 
+  function sewerRows(s, row){
+    if (!s) return row('Sewer', 'Sewer layer not loaded');
+    return row('Sewer &ndash; existing', esc(s.existing)) + row('Sewer &ndash; proposed', esc(s.proposed)) + (s.desired ? row('Sewer &ndash; desired', esc(s.desired)) : '');
+  }
   function popupHtml(p){
     const c = CAT[p.cat], row = (k, v) => v ? '<tr><td>' + k + '</td><td>' + v + '</td></tr>' : '';
     const sale = p.salePrice > 0 ? fmt$(p.salePrice) + (p.saleDate ? ' (' + esc(p.saleDate) + ')' : '') : esc(p.saleDate);
@@ -486,6 +627,7 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
       row('Mapped zoning', p.zoneCls || p.zoneDesc ? esc(zoneTitle(p.zoneCls, p.zoneDesc)) : (p.geometry ? 'No district at parcel center' : '')) +
       row('Assessor zone', esc(p.camaZone)) +
       row('Assessor use', esc(p.useDesc) + (p.use ? ' (' + esc(p.use) + ')' : '')) +
+      (p.vcat ? row('Vacancy coding', esc(VCAT[p.vcat].label)) : '') +
       row('Acres', p.acres ? fmtA(p.acres) : '') +
       row('Assessed land', p.landVal ? fmt$(p.landVal) + (p.ppa ? ' · ' + fmt$(p.ppa) + '/ac' : '') : '') +
       (p.kind === 'underused' ? row('Appraised building', fmt$(p.bldVal) + ' · ' + Math.round(p.ratio * 100) + '% of ' + fmt$(p.apprLand) + ' appraised land') : '') +
@@ -493,6 +635,7 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
       row('Appraised total', p.appraisedTotal ? fmt$(p.appraisedTotal) : '') +
       row('Last sale', sale) +
       row('Owner', esc(p.owner)) +
+      sewerRows(sewerOf(p), row) +
       '</table><div style="margin-top:6px">' +
       (p.pt ? '<a target="_blank" rel="noopener" href="https://www.google.com/maps/@?api=1&map_action=map&basemap=satellite&zoom=18&center=' + p.pt[1].toFixed(6) + '%2C' + p.pt[0].toFixed(6) + '">Open in Google Maps</a>' : '') + '</div></div>';
   }
@@ -504,6 +647,9 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
     // legend counts ignore the category filter so unchecked classes still show what is available
     const counts = {}; for (const p of noCat) counts[p.cat] = (counts[p.cat] || 0) + 1;
     for (const c of CATS) $('n-' + c.id).textContent = counts[c.id] ? fmtN(counts[c.id]) : '0';
+    // same idea for the assessor coding: counts ignore that filter only
+    const vc = {}; for (const p of applyFilters(false, true)) if (p.kind === 'vacant') vc[p.vcat] = (vc[p.vcat] || 0) + 1;
+    for (const v of VCATS) $('vn-' + v.id).textContent = vc[v.id] ? fmtN(vc[v.id]) : '0';
 
     const key = $('sort').value;
     filtered.sort(key === 'acres' ? (a, b) => b.acres - a.acres :
@@ -559,11 +705,12 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
   map.on('click', e => {
     const z = zoneAt(zoneIndex, e.latlng.lng, e.latlng.lat); if (!z) return;
     const c = CAT[z.cat];
-    L.popup().setLatLng(e.latlng).setContent('<div class="pop"><h3>' + esc(zoneTitle(z.cls, z.desc)) + '</h3><div class="sub">' + (zoneLongName(z.cls, z.desc) ? 'Zoning district' : 'Zoning district · no long name recorded for this code') + '</div><span class="pill" style="background:' + c.color + '33;border-color:' + c.color + '">' + esc(c.label) + '</span></div>').openOn(map);
+    const s = sewerIndex ? sewerStatus(sewerIndex, null, [e.latlng.lng, e.latlng.lat]) : null;
+    L.popup().setLatLng(e.latlng).setContent('<div class="pop"><h3>' + esc(zoneTitle(z.cls, z.desc)) + '</h3><div class="sub">' + (zoneLongName(z.cls, z.desc) ? 'Zoning district' : 'Zoning district · no long name recorded for this code') + '</div><span class="pill" style="background:' + c.color + '33;border-color:' + c.color + '">' + esc(c.label) + '</span>' + (s ? '<table style="margin-top:6px">' + sewerRows(s, (k, v) => v ? '<tr><td>' + k + '</td><td>' + v + '</td></tr>' : '') + '</table>' : '') + '</div>').openOn(map);
   });
 
   $('csv').onclick = () => {
-    const cols = [['Type', p => p.kind === 'vacant' ? 'Vacant' : 'Underused'], ['Town', 'town'], ['Address', 'address'], ['Parcel ID', 'parcelId'], ['General zoning', p => CAT[p.cat].label], ['Mapped zone', 'zoneCls'], ['Mapped zone description', 'zoneDesc'], ['Assessor zone', 'camaZone'], ['Assessor use code', 'use'], ['Assessor use', 'useDesc'], ['Acres', p => p.acres ? p.acres.toFixed(3) : ''], ['Assessed land', 'landVal'], ['Assessed land per acre', p => p.ppa ? Math.round(p.ppa) : ''], ['Appraised land', 'apprLand'], ['Appraised building', 'bldVal'], ['Appraised outbuildings', 'obVal'], ['Building-to-land ratio', p => p.kind === 'underused' ? p.ratio.toFixed(2) : ''], ['Assessed total', 'assessedTotal'], ['Appraised total', 'appraisedTotal'], ['Last sale date', 'saleDate'], ['Last sale price', 'salePrice'], ['Owner', 'owner'], ['Public or exempt', p => p.isPublic ? 'Yes' : 'No'], ['Coded unbuildable', p => p.unbuildable ? 'Yes' : 'No'], ['Farm or forest', p => p.farmForest ? 'Yes' : 'No'], ['Latitude', p => p.pt ? p.pt[1].toFixed(6) : ''], ['Longitude', p => p.pt ? p.pt[0].toFixed(6) : '']];
+    const cols = [['Type', p => p.kind === 'vacant' ? 'Vacant' : 'Underused'], ['Town', 'town'], ['Address', 'address'], ['Parcel ID', 'parcelId'], ['General zoning', p => CAT[p.cat].label], ['Mapped zone', 'zoneCls'], ['Mapped zone description', 'zoneDesc'], ['Assessor zone', 'camaZone'], ['Assessor use code', 'use'], ['Assessor use', 'useDesc'], ['Acres', p => p.acres ? p.acres.toFixed(3) : ''], ['Assessed land', 'landVal'], ['Assessed land per acre', p => p.ppa ? Math.round(p.ppa) : ''], ['Appraised land', 'apprLand'], ['Appraised building', 'bldVal'], ['Appraised outbuildings', 'obVal'], ['Building-to-land ratio', p => p.kind === 'underused' ? p.ratio.toFixed(2) : ''], ['Assessed total', 'assessedTotal'], ['Appraised total', 'appraisedTotal'], ['Last sale date', 'saleDate'], ['Last sale price', 'salePrice'], ['Owner', 'owner'], ['Public or exempt', p => p.isPublic ? 'Yes' : 'No'], ['Assessor vacancy coding', p => p.vcat ? VCAT[p.vcat].label : ''], ['Existing sewer', p => { const s = sewerOf(p); return s ? s.existingCode : ''; }], ['Existing sewer detail', p => { const s = sewerOf(p); return s ? s.existing : ''; }], ['Proposed sewer', p => { const s = sewerOf(p); return s ? s.proposedCode : ''; }], ['Proposed sewer detail', p => { const s = sewerOf(p); return s ? s.proposed : ''; }], ['Latitude', p => p.pt ? p.pt[1].toFixed(6) : ''], ['Longitude', p => p.pt ? p.pt[0].toFixed(6) : '']];
     const cell = v => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     const csv = [cols.map(c => cell(c[0])).join(',')].concat(filtered.map(p => cols.map(c => cell(typeof c[1] === 'function' ? c[1](p) : p[c[1]])).join(','))).join('\r\n');
     const a = document.createElement('a');
@@ -576,6 +723,15 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
       status('Loading zoning districts and parcels…');
       const zoningP = loadZoning();
       const townsP = loadTowns().catch(() => []);
+      // the sewer layer is optional: the map still works if it fails to load
+      loadSewer().then(({areas, routes}) => {
+        sewerIndex = buildSewerIndex(areas, routes);
+        sewerLayer = L.layerGroup([
+          L.geoJSON(areas, {pane: 'sewer', renderer: sewerRenderer, interactive: false, style: f => SEWER_STYLE[f.properties.AV_LEGEND] || SEWER_STYLE.Existing}),
+          L.geoJSON(routes, {pane: 'sewer', renderer: sewerRenderer, interactive: false, style: {color: '#00e5c8', weight: 3, dashArray: '8 6'}})
+        ]);
+        if ($('sshow').checked) sewerLayer.addTo(map);
+      }).catch(err => console.error('Sewer layer failed to load', err));
       const featsP = loadParcels(VACANT_WHERE, (d, n) => status('Vacant parcels: ' + fmtN(d) + ' of ' + fmtN(n) + '…'));
       featsP.catch(() => {});
 
