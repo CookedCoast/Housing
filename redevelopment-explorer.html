@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Southeastern CT Redevelopment Explorer — Vacant & Underused Parcels by General Zoning</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --ink:#1c2430; --muted:#5d6878; --line:#dfe3e8; --bg:#f6f7f9; --panel:#ffffff; --accent:#0b5cad;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);display:flex;flex-direction:column}
+  header{display:flex;align-items:baseline;gap:14px;padding:10px 16px;background:var(--ink);color:#fff}
+  header h1{font-size:16px;margin:0;font-weight:650;letter-spacing:.01em}
+  header span{font-size:12px;color:#b9c3d0}
+  #status{margin-left:auto;font-size:12px;color:#ffd98a;white-space:nowrap}
+  #status.ok{color:#9be3b0}
+  #status.err{color:#ff9d9d}
+  main{flex:1;display:grid;grid-template-columns:350px 1fr;min-height:0}
+  aside{background:var(--panel);border-right:1px solid var(--line);overflow:auto;min-height:0}
+  .scroll{overflow:auto;min-height:0}
+  section{padding:12px 14px;border-bottom:1px solid var(--line)}
+  h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px;font-weight:650}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+  select,input[type=text],input[type=number]{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font:inherit;background:#fff;color:var(--ink)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .check{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink);margin:4px 0;cursor:pointer}
+  .check input{margin:0}
+  .sw{width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.35);flex:none}
+  .cat .n{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .kpi{background:var(--bg);border-radius:8px;padding:8px}
+  .kpi b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
+  .kpi span{font-size:11px;color:var(--muted)}
+  .bar{display:grid;grid-template-columns:118px 1fr 78px;align-items:center;gap:6px;font-size:12px;margin-top:5px}
+  .bar i{display:block;height:9px;border-radius:2px;min-width:1px}
+  .bar em{font-style:normal;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+  .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  button{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);cursor:pointer}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  #list{list-style:none;margin:0;padding:0}
+  #list li{padding:8px 14px;border-bottom:1px solid var(--line);cursor:pointer;display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:start}
+  #list li:hover{background:#eef4fb}
+  #list .dot{width:10px;height:10px;border-radius:2px;margin-top:4px;border:1px solid rgba(0,0,0,.35)}
+  #list .a{font-weight:600;font-size:13px}
+  #list .s{font-size:12px;color:var(--muted)}
+  #list .r{text-align:right;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #more{padding:10px 14px;font-size:12px;color:var(--muted)}
+  #map{min-height:0;height:100%;background:#e9ecef}
+  .mapctl{background:#fff;padding:8px 10px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:12px;min-width:170px}
+  .mapctl label{color:var(--ink)}
+  .mapctl input[type=range]{width:100%}
+  .pop h3{margin:0 0 2px;font-size:14px}
+  .pop .sub{color:var(--muted);font-size:12px;margin-bottom:6px}
+  .pop table{border-collapse:collapse;font-size:12px}
+  .pop td{padding:2px 10px 2px 0;vertical-align:top}
+  .pop td:first-child{color:var(--muted);white-space:nowrap}
+  .pill{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;border:1px solid rgba(0,0,0,.25)}
+  .note{font-size:11px;color:var(--muted);margin-top:6px}
+  @media (max-width:800px){main{grid-template-columns:1fr;grid-template-rows:55vh 1fr}aside{order:2;border-right:0;border-top:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Redevelopment Explorer</h1>
+  <span>Southeastern CT planning region · vacant and underused parcels by general zoning</span>
+  <div id="status">Loading…</div>
+</header>
+<main>
+  <aside>
+    <div>
+      <section>
+        <h2>Where</h2>
+        <label for="town">Town</label>
+        <select id="town"><option value="">All 19 towns (Southeastern CT region)</option></select>
+        <div style="margin-top:8px">
+          <label for="q">Search address, owner, or zone code</label>
+          <input id="q" type="text" placeholder="e.g. MAIN ST, LLC, R-40">
+        </div>
+      </section>
+      <section>
+        <h2>Parcel type</h2>
+        <label class="check"><input id="kVac" type="checkbox" checked><span class="sw" style="background:#bbb;border:1.5px solid #111"></span> Vacant (no building)<span class="n" id="nVac" style="margin-left:auto;color:var(--muted);font-size:12px"></span></label>
+        <label class="check"><input id="kUnd" type="checkbox" disabled><span class="sw" style="background:#bbb;border:1.5px dashed #111"></span> Underused built parcels<span class="n" id="nUnd" style="margin-left:auto;color:var(--muted);font-size:12px"></span></label>
+        <div id="undBox" style="display:none;margin-top:6px">
+          <label for="ratio">Building value at most <b id="ratioV">50%</b> of land value</label>
+          <input id="ratio" type="range" min="5" max="100" step="5" value="50" style="width:100%">
+        </div>
+        <div class="note">Vacant = coded vacant by the assessor, or carrying land value with no building value. Underused = a built parcel whose appraised building value is low relative to its appraised land value (loaded on first use). Condominium units, cemeteries, roads and water are left out.</div>
+      </section>
+      <section>
+        <h2>General zoning (mapped)</h2>
+        <div id="cats"></div>
+        <div class="note">Each town's zoning districts are grouped into these general classes from the district code and description. Click anywhere on the map to see the exact district.</div>
+      </section>
+      <section>
+        <h2>Parcel filters</h2>
+        <div class="row" style="margin-top:0">
+          <div><label for="amin">Min acres</label><input id="amin" type="number" min="0" step="0.1" placeholder="0"></div>
+          <div><label for="amax">Max acres</label><input id="amax" type="number" min="0" step="0.1" placeholder="any"></div>
+        </div>
+        <div style="margin-top:8px">
+          <label for="own">Ownership</label>
+          <select id="own">
+            <option value="">All</option>
+            <option value="private">Private (taxable)</option>
+            <option value="public">Public / tax-exempt</option>
+          </select>
+        </div>
+        <label class="check" style="margin-top:8px"><input id="unb" type="checkbox" checked> Hide vacant parcels coded unbuildable</label>
+        <label class="check"><input id="farm" type="checkbox" checked> Hide farm, forest &amp; conservation land</label>
+        <label class="check"><input id="ob" type="checkbox"> Vacant: only those with outbuildings / minor improvements</label>
+      </section>
+      <section>
+        <h2>Summary of current selection</h2>
+        <div class="kpis">
+          <div class="kpi"><b id="kN">–</b><span>parcels</span></div>
+          <div class="kpi"><b id="kA">–</b><span>acres</span></div>
+          <div class="kpi"><b id="kV">–</b><span>assessed land</span></div>
+        </div>
+        <div id="bars" style="margin-top:8px"></div>
+      </section>
+    </div>
+    <section style="position:sticky;top:0;background:var(--panel);z-index:2">
+      <div class="tools">
+        <label for="sort" style="margin:0">Sort</label>
+        <select id="sort" style="width:auto;flex:1">
+          <option value="acres">Largest acreage</option>
+          <option value="ppa">Lowest assessed land $ / acre</option>
+          <option value="ratio">Lowest building-to-land ratio</option>
+          <option value="val">Highest assessed land value</option>
+          <option value="addr">Address</option>
+        </select>
+        <button id="csv" title="Download the filtered parcels as CSV">Export CSV</button>
+      </div>
+    </section>
+    <div>
+      <ul id="list"></ul>
+      <div id="more"></div>
+    </div>
+  </aside>
+  <div id="map"></div>
+</main>
+
+<script>
+/* ============================ configuration ============================ */
+const SCCOG = 'https://services6.arcgis.com/c8bwOPjaFB6olbad/arcgis/rest/services/';
+const URLS = {
+  zoning:  SCCOG + 'Zoning_public_0cbc5bef4b974348a124240af384c110/FeatureServer/0',
+  // Statewide parcel polygons with assessor (CAMA) attributes already joined.
+  parcels: 'https://services3.arcgis.com/3FL1kr7L4LvwA2Kb/arcgis/rest/services/Connecticut_CAMA_and_Parcel_Layer/FeatureServer/0',
+  towns:   SCCOG + 'Web_Parcel_Layer/FeatureServer/2'   // town outlines only
+};
+// Only parcels in the Southeastern CT planning region.
+const REGION_WHERE = "COG = 'Southeastern CT'";
+// Vacant = assessor description says vacant, OR the assessor's building model is "00" (land only),
+// OR the record carries land value but no building value. Towns code vacancy differently, so all three are needed.
+const VACANT_SQL = "(UPPER(State_Use_Description) LIKE '%VAC%' OR Model IN ('0','0.0','00') OR ((Appraised_Building IS NULL OR Appraised_Building = 0) AND Appraised_Land > 0))";
+const VACANT_WHERE = REGION_WHERE + ' AND ' + VACANT_SQL;
+// Built parcels whose appraised building value is below appraised land value (the slider narrows this further).
+const UNDERUSED_WHERE = REGION_WHERE + ' AND Appraised_Building > 0 AND Appraised_Land > 0 AND Appraised_Building < Appraised_Land AND NOT ' + VACANT_SQL + " AND (State_Use_Description IS NULL OR UPPER(State_Use_Description) NOT LIKE '%CONDO%')";
+const PARCEL_FIELDS = 'OBJECTID,Town_Name,Location,Parcel_ID,Parcel_Type,Owner,Assessed_Total,Assessed_Land,Appraised_Land,Appraised_Building,Appraised_Outbuilding,Land_Acres,Zone,State_Use,State_Use_Description,Sale_Price,Sale_Date,Shape__Area';
+const TOWN_NAMES = ['Bozrah','Colchester','East Lyme','Franklin','Griswold','Groton','Lebanon','Ledyard','Lisbon','Montville','New London','North Stonington','Norwich','Preston','Salem','Sprague','Stonington','Waterford','Windham'];
+const SQFT_PER_ACRE = 43560;   // the layer's Shape__Area is in square feet (CT state plane)
+const CATS = [
+  {id:'res',   label:'Residential',                  color:'#f4d03f'},
+  {id:'multi', label:'Residential – multi-family',   color:'#e67e22'},
+  {id:'com',   label:'Commercial / business',        color:'#d6342c'},
+  {id:'mixed', label:'Mixed use / village / planned', color:'#c2529b'},
+  {id:'ind',   label:'Industrial',                   color:'#7d4bb5'},
+  {id:'inst',  label:'Institutional / government',   color:'#2e86c1'},
+  {id:'open',  label:'Open space / agriculture',     color:'#3c9d5b'},
+  {id:'other', label:'Water, ROW, or unmapped',      color:'#9aa3ad'}
+];
+const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
+const LIST_LIMIT = 300;
+
+/* ====================== general zoning classification ===================== */
+// Groups ~250 town-specific district codes into general classes.
+function classifyZone(cls, desc){
+  const c = (cls || '').trim().toUpperCase();
+  const d = (desc || '').trim().toUpperCase();
+  if (!c && !d) return 'other';
+  if (/^(WATER|ROW|L|BRIDGE|COVE|NOZONE|ANNEX)$/.test(c) || /NEEDS QC|QC NEEDED|^LAKE$/.test(d)) return 'other';
+  if (/OPEN SPACE|RESERVED LAND|SEASIDE PRESERV/.test(d) || (/AGRICULT/.test(d) && !/RESID/.test(d)) || /^(OS|OSPR|ROS|RL|A)$/.test(c)) return 'open';
+  if (/GOVERNMENT|INSTITUTION|HEALTH CARE/.test(d) || /^(G|GFZ|INST)$/.test(c)) return 'inst';
+  if (/MIXED|VILLAGE|COMMERCIAL\/RESIDENTIAL|(COMMERC|INDUSTR)\w* MULTI|DEVELOP|DOWNTOWN|CENTRAL BUSINESS|HERITAGE|MILLS?\b|MARITIME|MARINE|WATERFRONT|CIVIC|CHELSEA|ART SPACE|RE-USE/.test(d)) return 'mixed';
+  if (/INDUSTR|INDUSTIR|MANUFACT/.test(d)) return 'ind';
+  if (/MULTI-? ?FAMI|MULTIFAMI|TWO FAMILY|HIGH DENSITY|AFFORDABLE HOUSING|SENIOR/.test(d) || /^(MF|RM|RMF|R-MF|PMFH|HOD)$/.test(c)) return 'multi';
+  if (/COMMERC|COMMERIC|BUSINESS|SHOPPING|RETAIL|RESORT|OFFICE/.test(d)) return 'com';
+  if (/RESID|RURAL|SINGLE.FAMILY/.test(d)) return 'res';
+  // no helpful description: fall back to the code
+  if (/^(PDD|PAD|SDD)/.test(c) || /DD$/.test(c)) return 'mixed';
+  if (/^(I|LI|IP|IG|IM|PI|IT|M)(-|\d|$)/.test(c)) return 'ind';
+  if (/^(C|B|GC|HC|NB|NC|DB|LS|HI|MC|SPEC BUS)/.test(c) || c === 'RC') return 'com';
+  if (/^(R|GR|GBR|NPR)/.test(c)) return 'res';
+  return 'mixed';
+}
+
+// Classifies the assessor's land-use coding of a parcel record.
+function parcelFlags(a){
+  const u = String(a.State_Use || '').toUpperCase(), d = (a.State_Use_Description || '').toUpperCase(), t = (a.Parcel_Type || '').toUpperCase();
+  return {
+    // not a development parcel at all: condo/dock units, cemeteries, roads, water, rail
+    drop: /CONDO|DOCKOMIN|CEMETER/.test(d) || /ROW|ROAD|WATER|RAIL|INTERSTATE|PVTRD/.test(t),
+    unbuildable: /UNB|ACLNUD|LAKE BOTTOM|UNDEVELOPABLE/.test(d) || /^(132|392|442)/.test(u),
+    farmForest: /FOREST|TILLABLE|PASTURE|\b490\b|FARM|USE ASSESS|ORCHARD|WOODLAND|SWAMP|NURSERY|CNSERV|CONSERV/.test(d),
+    isPublic: /EXEMPT|MUNICIPAL|\bMUN\b|STATE|FEDERAL|NON.?PROFIT|CHURCH|HSNG AUTH|TOWN/.test(d) || /^9\d/.test(u),
+    outbuilding: Number(a.Appraised_Outbuilding) > 0 || /\bOB\b|IMP\b|IMPROV/.test(d)
+  };
+}
+
+/* ============================== geometry ============================== */
+function ringBBox(coords, bb){
+  for (const p of coords){ if(p[0]<bb[0])bb[0]=p[0]; if(p[1]<bb[1])bb[1]=p[1]; if(p[0]>bb[2])bb[2]=p[0]; if(p[1]>bb[3])bb[3]=p[1]; }
+  return bb;
+}
+function polys(geom){ return !geom ? [] : geom.type === 'Polygon' ? [geom.coordinates] : geom.type === 'MultiPolygon' ? geom.coordinates : []; }
+function geomBBox(geom){
+  const bb = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const poly of polys(geom)) if (poly[0]) ringBBox(poly[0], bb);
+  return bb;
+}
+function inRing(x, y, ring){
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++){
+    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function inPoly(x, y, poly){
+  if (!poly[0] || !inRing(x, y, poly[0])) return false;
+  for (let k = 1; k < poly.length; k++) if (inRing(x, y, poly[k])) return false;
+  return true;
+}
+// A point guaranteed to be representative of the parcel: area centroid of the largest ring,
+// falling back to a vertex-adjacent interior probe when the centroid falls outside (L-shaped lots).
+function labelPoint(geom){
+  let best = null, bestA = -1;
+  for (const poly of polys(geom)){
+    const r = poly[0]; if (!r || r.length < 3) continue;
+    let a = 0, cx = 0, cy = 0;
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++){
+      const f = r[j][0] * r[i][1] - r[i][0] * r[j][1];
+      a += f; cx += (r[j][0] + r[i][0]) * f; cy += (r[j][1] + r[i][1]) * f;
+    }
+    if (Math.abs(a) > bestA){
+      bestA = Math.abs(a);
+      let pt = a ? [cx / (3 * a), cy / (3 * a)] : r[0];
+      if (!inPoly(pt[0], pt[1], poly)){
+        for (let i = 0; i + 2 < r.length; i++){
+          const m = [(r[i][0] + r[i + 1][0] + r[i + 2][0]) / 3, (r[i][1] + r[i + 1][1] + r[i + 2][1]) / 3];
+          if (inPoly(m[0], m[1], poly)){ pt = m; break; }
+        }
+      }
+      best = pt;
+    }
+  }
+  return best;
+}
+function buildZoneIndex(features){
+  return features.filter(f => f.geometry).map(f => ({
+    cls: f.properties.ZONECLASS, desc: f.properties.ZONEDESC,
+    cat: classifyZone(f.properties.ZONECLASS, f.properties.ZONEDESC),
+    bb: geomBBox(f.geometry), polys: polys(f.geometry)
+  }));
+}
+function zoneAt(index, x, y){
+  let fallback = null;
+  for (const z of index){
+    if (x < z.bb[0] || x > z.bb[2] || y < z.bb[1] || y > z.bb[3]) continue;
+    for (const poly of z.polys) if (inPoly(x, y, poly)){
+      if (z.cat !== 'other') return z;       // prefer a real district over water/ROW overlaps
+      fallback = fallback || z;
+    }
+  }
+  return fallback;
+}
+
+/* ============================== data access ============================== */
+async function arcQuery(url, params, post){
+  const body = new URLSearchParams(params);
+  const res = post ? await fetch(url + '/query', {method: 'POST', body}) : await fetch(url + '/query?' + body);
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' from ' + url);
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message || 'ArcGIS query error');
+  return json;
+}
+// Pages through the parcel layer (2,000 features per request) with a few requests in flight at once.
+async function loadParcels(where, onProgress){
+  const total = (await arcQuery(URLS.parcels, {f:'json', where, returnCountOnly:'true'}, true)).count || 0;
+  const offsets = []; for (let o = 0; o < total; o += 2000) offsets.push(o);
+  const out = []; let next = 0;
+  async function worker(){
+    while (next < offsets.length){
+      const offset = offsets[next++];
+      const j = await arcQuery(URLS.parcels, {f:'geojson', where, outFields:PARCEL_FIELDS, outSR:'4326', geometryPrecision:'6', maxAllowableOffset:'0.00001', orderByFields:'OBJECTID', resultOffset:String(offset), resultRecordCount:'2000'}, true);
+      for (const f of (j.features || [])) out.push(f);
+      if (onProgress) onProgress(Math.min(out.length, total), total);
+    }
+  }
+  await Promise.all(Array.from({length: 4}, worker));
+  return out;
+}
+async function loadZoning(){
+  const feats = []; let offset = 0;
+  for (;;){
+    const j = await arcQuery(URLS.zoning, {f:'geojson', where:'1=1', outFields:'ZONECLASS,ZONEDESC', outSR:'4326', geometryPrecision:'5', maxAllowableOffset:'0.00005', orderByFields:'OBJECTID', resultOffset:offset, resultRecordCount:2000});
+    feats.push(...(j.features || []));
+    const more = j.exceededTransferLimit || (j.properties && j.properties.exceededTransferLimit);
+    if (!more || !j.features.length) break;
+    offset += j.features.length;
+  }
+  return feats;
+}
+async function loadTowns(){
+  const j = await arcQuery(URLS.towns, {f:'geojson', where:'1=1', outFields:'Municipali,Municipa_1', outSR:'4326', geometryPrecision:'5', maxAllowableOffset:'0.0002'});
+  return j.features || [];
+}
+// Turns parcel features into app records and attaches the mapped zoning district.
+function buildParcels(features, zoneIndex, kind){
+  kind = kind || 'vacant';
+  const seen = new Set(), list = [];
+  for (const f of features){
+    const a = f.properties || {}, id = String(a.OBJECTID);
+    if (seen.has(id)) continue; seen.add(id);
+    const flags = parcelFlags(a);
+    if (flags.drop) continue;
+    const pt = f.geometry ? labelPoint(f.geometry) : null;
+    const z = pt ? zoneAt(zoneIndex, pt[0], pt[1]) : null;
+    const shapeAcres = Number(a.Shape__Area) / SQFT_PER_ACRE;
+    const acres = shapeAcres > 0 ? shapeAcres : (Number(a.Land_Acres) > 0 ? Number(a.Land_Acres) : 0);
+    const apprLand = Number(a.Appraised_Land) || 0, bldVal = Number(a.Appraised_Building) || 0, obVal = Number(a.Appraised_Outbuilding) || 0;
+    const sale = String(a.Sale_Date || '').split(' ')[0];
+    const p = {
+      id, kind, town: (a.Town_Name || '').trim() || 'Unknown town',
+      address: (a.Location || '').trim() || '(no address)', owner: (a.Owner || '').trim(),
+      use: a.State_Use, useDesc: (a.State_Use_Description || '').trim(),
+      camaZone: (a.Zone || '').trim(), parcelId: a.Parcel_ID,
+      acres, landVal: Number(a.Assessed_Land) || 0, assessedTotal: Number(a.Assessed_Total) || 0,
+      apprLand, bldVal, obVal, appraisedTotal: apprLand + bldVal + obVal,
+      saleDate: /\/1900$/.test(sale) ? '' : sale, salePrice: Number(a.Sale_Price) || 0,
+      geometry: f.geometry || null, pt,
+      zoneCls: z ? z.cls : null, zoneDesc: z ? z.desc : null,
+      cat: z ? z.cat : 'other',
+      unbuildable: kind === 'vacant' && flags.unbuildable, farmForest: flags.farmForest,
+      isPublic: flags.isPublic, outbuilding: flags.outbuilding
+    };
+    p.ppa = p.acres > 0 && p.landVal > 0 ? p.landVal / p.acres : null;
+    p.ratio = apprLand > 0 ? bldVal / apprLand : null;
+    p.hay = (p.address + ' ' + p.owner + ' ' + (p.zoneCls || '') + ' ' + p.camaZone + ' ' + (p.parcelId || '')).toUpperCase();
+    list.push(p);
+  }
+  return list;
+}
+
+/* ================================ app ================================ */
+if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const fmtN = n => Math.round(n).toLocaleString('en-US');
+  const fmtA = n => n >= 100 ? fmtN(n) : n.toLocaleString('en-US', {maximumFractionDigits: 2});
+  const fmt$ = n => n >= 1e6 ? '$' + (n / 1e6).toFixed(n >= 1e7 ? 1 : 2) + 'M' : '$' + fmtN(n);
+  const status = (t, cls) => { const s = $('status'); s.textContent = t; s.className = cls || ''; };
+
+  const map = L.map('map', {preferCanvas: true}).setView([41.52, -72.12], 10);
+  const light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom: 20, subdomains: 'abcd', attribution: '&copy; OpenStreetMap contributors &copy; CARTO'}).addTo(map);
+  const imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom: 20, maxNativeZoom: 19, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics'});
+  map.createPane('zoning').style.zIndex = 350;
+  map.createPane('towns').style.zIndex = 360;
+  map.createPane('parcels').style.zIndex = 420;
+  const zoningRenderer = L.canvas({pane: 'zoning'}), parcelRenderer = L.canvas({pane: 'parcels', tolerance: 3});
+  map.attributionControl.addAttribution('Zoning: SCCOG · Parcels &amp; CAMA: Connecticut statewide layer');
+
+  let zoneIndex = [], parcels = [], filtered = [], zoningLayer = null, townsLayer = null, parcelLayer = null;
+  const townBounds = {}, layerById = new Map();
+  const state = {cats: new Set(CATS.filter(c => c.id !== 'other' && c.id !== 'open').map(c => c.id)), zoningOpacity: 0.35};
+
+  // map controls: basemap + zoning opacity
+  const ctl = L.control({position: 'topright'});
+  ctl.onAdd = () => {
+    const d = L.DomUtil.create('div', 'mapctl');
+    d.innerHTML = '<label class="check"><input type="checkbox" id="img"> Aerial imagery</label>' +
+      '<label class="check"><input type="checkbox" id="zshow" checked> Zoning districts</label>' +
+      '<label for="zop" style="margin-top:4px">Zoning opacity</label><input type="range" id="zop" min="0" max="80" value="35">';
+    L.DomEvent.disableClickPropagation(d); L.DomEvent.disableScrollPropagation(d);
+    return d;
+  };
+  ctl.addTo(map);
+  $('img').onchange = e => { if (e.target.checked){ map.removeLayer(light); imagery.addTo(map); } else { map.removeLayer(imagery); light.addTo(map); } };
+  $('zshow').onchange = e => { if (!zoningLayer) return; e.target.checked ? zoningLayer.addTo(map) : map.removeLayer(zoningLayer); };
+  $('zop').oninput = e => { state.zoningOpacity = e.target.value / 100; if (zoningLayer) zoningLayer.setStyle(zoningStyle); };
+
+  function zoningStyle(f){
+    const c = CAT[f.properties._cat];
+    return {color: c.color, weight: 0.6, opacity: Math.min(1, state.zoningOpacity + 0.25), fillColor: c.color, fillOpacity: state.zoningOpacity};
+  }
+
+  // category checkboxes double as the legend
+  $('cats').innerHTML = CATS.map(c => '<label class="check cat"><input type="checkbox" data-cat="' + c.id + '"' + (state.cats.has(c.id) ? ' checked' : '') + '><span class="sw" style="background:' + c.color + '"></span>' + esc(c.label) + '<span class="n" id="n-' + c.id + '"></span></label>').join('');
+  $('cats').addEventListener('change', e => { const id = e.target.dataset.cat; if (!id) return; e.target.checked ? state.cats.add(id) : state.cats.delete(id); render(); });
+  $('town').innerHTML += TOWN_NAMES.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('');
+  let t;
+  $('town').onchange = () => { render(); zoomToSelection(); };
+  for (const id of ['own', 'unb', 'ob', 'farm', 'sort', 'kVac']) $(id).onchange = render;
+  $('ratio').oninput = e => { $('ratioV').textContent = e.target.value + '%'; clearTimeout(t); t = setTimeout(render, 150); };
+  let underusedState = 'none';
+  $('kUnd').onchange = async e => {
+    $('undBox').style.display = e.target.checked ? '' : 'none';
+    if (!e.target.checked || underusedState === 'loaded') return render();
+    if (underusedState === 'loading') return;
+    underusedState = 'loading'; render();
+    try {
+      const feats = await loadParcels(UNDERUSED_WHERE, (d, n) => status('Underused parcels: ' + fmtN(d) + ' of ' + fmtN(n) + '…'));
+      const have = new Set(parcels.map(p => p.id));
+      const und = buildParcels(feats, zoneIndex, 'underused').filter(p => !have.has(p.id) && p.ratio != null && p.ratio > 0 && p.ratio < 1);
+      parcels = parcels.concat(und);
+      underusedState = 'loaded';
+      status(fmtN(parcels.length - und.length) + ' vacant · ' + fmtN(und.length) + ' underused candidates · Southeastern CT region', 'ok');
+    } catch (err){
+      console.error(err); underusedState = 'none'; e.target.checked = false; $('undBox').style.display = 'none';
+      status('Could not load underused parcels: ' + err.message, 'err');
+    }
+    render();
+  };
+  for (const id of ['q', 'amin', 'amax']) $(id).oninput = () => { clearTimeout(t); t = setTimeout(render, 200); };
+
+  function applyFilters(ignoreCats){
+    const town = $('town').value, q = $('q').value.trim().toUpperCase(), own = $('own').value;
+    const amin = parseFloat($('amin').value), amax = parseFloat($('amax').value);
+    const hideUnb = $('unb').checked, onlyOb = $('ob').checked, hideFarm = $('farm').checked;
+    const showVac = $('kVac').checked, showUnd = $('kUnd').checked && underusedState === 'loaded', maxRatio = $('ratio').value / 100;
+    return parcels.filter(p =>
+      (p.kind === 'vacant' ? showVac : (showUnd && p.ratio <= maxRatio)) &&
+      (!town || p.town === town) &&
+      (ignoreCats || state.cats.has(p.cat)) &&
+      (p.kind !== 'vacant' || ((!hideUnb || !p.unbuildable) && (!onlyOb || p.outbuilding))) &&
+      (!hideFarm || !p.farmForest) &&
+      (!own || (own === 'public') === p.isPublic) &&
+      (isNaN(amin) || p.acres >= amin) && (isNaN(amax) || p.acres <= amax) &&
+      (!q || p.hay.includes(q)));
+  }
+
+  function popupHtml(p){
+    const c = CAT[p.cat], row = (k, v) => v ? '<tr><td>' + k + '</td><td>' + v + '</td></tr>' : '';
+    const sale = p.salePrice > 0 ? fmt$(p.salePrice) + (p.saleDate ? ' (' + esc(p.saleDate) + ')' : '') : esc(p.saleDate);
+    return '<div class="pop"><h3>' + esc(p.address) + '</h3><div class="sub">' + esc(p.town) + (p.parcelId ? ' · parcel ' + esc(p.parcelId) : '') + '</div>' +
+      '<span class="pill" style="background:' + c.color + '33;border-color:' + c.color + '">' + esc(c.label) + '</span> <span class="pill">' + (p.kind === 'vacant' ? 'Vacant' : 'Underused') + '</span><table style="margin-top:6px">' +
+      row('Mapped zoning', p.zoneCls ? esc(p.zoneCls) + (p.zoneDesc && p.zoneDesc !== p.zoneCls ? ' – ' + esc(p.zoneDesc) : '') : (p.geometry ? 'No district at parcel center' : '')) +
+      row('Assessor zone', esc(p.camaZone)) +
+      row('Assessor use', esc(p.useDesc) + (p.use ? ' (' + esc(p.use) + ')' : '')) +
+      row('Acres', p.acres ? fmtA(p.acres) : '') +
+      row('Assessed land', p.landVal ? fmt$(p.landVal) + (p.ppa ? ' · ' + fmt$(p.ppa) + '/ac' : '') : '') +
+      (p.kind === 'underused' ? row('Appraised building', fmt$(p.bldVal) + ' · ' + Math.round(p.ratio * 100) + '% of ' + fmt$(p.apprLand) + ' appraised land') : '') +
+      (p.obVal ? row('Appraised outbuildings', fmt$(p.obVal)) : '') +
+      row('Appraised total', p.appraisedTotal ? fmt$(p.appraisedTotal) : '') +
+      row('Last sale', sale) +
+      row('Owner', esc(p.owner)) +
+      '</table><div style="margin-top:6px">' +
+      (p.pt ? '<a target="_blank" rel="noopener" href="https://www.google.com/maps/@?api=1&map_action=map&basemap=satellite&zoom=18&center=' + p.pt[1].toFixed(6) + '%2C' + p.pt[0].toFixed(6) + '">Open in Google Maps</a>' : '') + '</div></div>';
+  }
+
+  function render(){
+    if (!parcels.length) return;
+    const noCat = applyFilters(true);
+    filtered = noCat.filter(p => state.cats.has(p.cat));
+    // legend counts ignore the category filter so unchecked classes still show what is available
+    const counts = {}; for (const p of noCat) counts[p.cat] = (counts[p.cat] || 0) + 1;
+    for (const c of CATS) $('n-' + c.id).textContent = counts[c.id] ? fmtN(counts[c.id]) : '0';
+
+    const key = $('sort').value;
+    filtered.sort(key === 'acres' ? (a, b) => b.acres - a.acres :
+                  key === 'val'   ? (a, b) => b.landVal - a.landVal :
+                  key === 'ratio' ? (a, b) => (a.kind === 'vacant') - (b.kind === 'vacant') || a.ratio - b.ratio || b.acres - a.acres :
+                  key === 'ppa'   ? (a, b) => (a.ppa == null) - (b.ppa == null) || a.ppa - b.ppa :
+                                    (a, b) => a.town.localeCompare(b.town) || a.address.localeCompare(b.address, 'en', {numeric: true}));
+
+    // summary
+    const acres = filtered.reduce((s, p) => s + p.acres, 0), val = filtered.reduce((s, p) => s + p.landVal, 0);
+    const nv = filtered.filter(p => p.kind === 'vacant').length;
+    $('nVac').textContent = $('kVac').checked ? fmtN(nv) : ''; $('nUnd').textContent = underusedState === 'loaded' && $('kUnd').checked ? fmtN(filtered.length - nv) : (underusedState === 'loading' ? 'loading…' : '');
+    $('kN').textContent = fmtN(filtered.length); $('kA').textContent = fmtN(acres); $('kV').textContent = fmt$(val);
+    const by = {}; for (const p of filtered){ (by[p.cat] = by[p.cat] || {n: 0, a: 0}); by[p.cat].n++; by[p.cat].a += p.acres; }
+    const maxA = Math.max(1, ...Object.values(by).map(v => v.a));
+    $('bars').innerHTML = CATS.filter(c => by[c.id]).map(c => '<div class="bar" title="' + fmtN(by[c.id].n) + ' parcels"><span>' + esc(c.label.split(' / ')[0].replace('Residential – ', 'Res. ')) + '</span><span><i style="width:' + (100 * by[c.id].a / maxA).toFixed(1) + '%;background:' + c.color + '"></i></span><em>' + fmtN(by[c.id].a) + ' ac</em></div>').join('') || '<div class="note">No parcels match these filters.</div>';
+
+    // map
+    if (parcelLayer) map.removeLayer(parcelLayer);
+    layerById.clear();
+    parcelLayer = L.featureGroup();
+    for (const p of filtered){
+      if (!p.geometry) continue;
+      const lyr = L.geoJSON(p.geometry, {renderer: parcelRenderer, pane: 'parcels', bubblingMouseEvents: false,
+        style: p.kind === 'vacant' ? {color: '#111', weight: 1.2, fillColor: CAT[p.cat].color, fillOpacity: 0.85}
+                                   : {color: '#111', weight: 1.4, dashArray: '4 3', fillColor: CAT[p.cat].color, fillOpacity: 0.5}});
+      lyr.bindPopup(() => popupHtml(p), {maxWidth: 340});
+      layerById.set(p.id, lyr); parcelLayer.addLayer(lyr);
+    }
+    parcelLayer.addTo(map);
+
+    // list
+    const noGeo = filtered.filter(p => !p.geometry).length;
+    $('list').innerHTML = filtered.slice(0, LIST_LIMIT).map(p => '<li data-id="' + esc(p.id) + '"><span class="dot" style="background:' + CAT[p.cat].color + '"></span><div><div class="a">' + esc(p.address) + '</div><div class="s">' + esc(p.town) + ' · ' + esc(p.zoneCls || p.camaZone || 'no zone') + ' · ' + esc(p.useDesc) + (p.kind === 'underused' ? ' · bldg ' + Math.round(p.ratio * 100) + '% of land' : '') + '</div></div><div class="r">' + (p.acres ? fmtA(p.acres) + ' ac' : '–') + '<br><span class="s">' + (p.ppa ? fmt$(p.ppa) + '/ac' : (p.landVal ? fmt$(p.landVal) : '')) + '</span></div></li>').join('');
+    $('more').textContent = (filtered.length > LIST_LIMIT ? 'Showing the first ' + LIST_LIMIT + ' of ' + fmtN(filtered.length) + ' — narrow the filters or export the CSV for the full list. ' : '') + (noGeo ? fmtN(noGeo) + ' matching assessor record' + (noGeo > 1 ? 's have no parcel shape and appear' : ' has no parcel shape and appears') + ' in the list only.' : '');
+  }
+
+  function zoomToSelection(){
+    const town = $('town').value;
+    if (town && townBounds[town]) return map.fitBounds(townBounds[town]);
+    if (town && !(parcelLayer && parcelLayer.getLayers().length)) return;
+    if (parcelLayer && parcelLayer.getLayers().length) map.fitBounds(parcelLayer.getBounds(), {maxZoom: 15});
+  }
+
+  $('list').addEventListener('click', e => {
+    const li = e.target.closest('li'); if (!li) return;
+    const lyr = layerById.get(li.dataset.id);
+    if (lyr){ map.fitBounds(lyr.getBounds(), {maxZoom: 17, padding: [60, 60]}); lyr.openPopup(); }
+    else { const p = filtered.find(x => x.id === li.dataset.id); if (p) L.popup({maxWidth: 340}).setLatLng(map.getCenter()).setContent(popupHtml(p)).openOn(map); }
+  });
+
+  // clicking the map (not a parcel) reports the zoning district under the cursor
+  map.on('click', e => {
+    const z = zoneAt(zoneIndex, e.latlng.lng, e.latlng.lat); if (!z) return;
+    const c = CAT[z.cat];
+    L.popup().setLatLng(e.latlng).setContent('<div class="pop"><h3>' + esc(z.cls || 'Unlabeled district') + '</h3><div class="sub">' + esc(z.desc && z.desc !== z.cls ? z.desc : 'Zoning district') + '</div><span class="pill" style="background:' + c.color + '33;border-color:' + c.color + '">' + esc(c.label) + '</span></div>').openOn(map);
+  });
+
+  $('csv').onclick = () => {
+    const cols = [['Type', p => p.kind === 'vacant' ? 'Vacant' : 'Underused'], ['Town', 'town'], ['Address', 'address'], ['Parcel ID', 'parcelId'], ['General zoning', p => CAT[p.cat].label], ['Mapped zone', 'zoneCls'], ['Mapped zone description', 'zoneDesc'], ['Assessor zone', 'camaZone'], ['Assessor use code', 'use'], ['Assessor use', 'useDesc'], ['Acres', p => p.acres ? p.acres.toFixed(3) : ''], ['Assessed land', 'landVal'], ['Assessed land per acre', p => p.ppa ? Math.round(p.ppa) : ''], ['Appraised land', 'apprLand'], ['Appraised building', 'bldVal'], ['Appraised outbuildings', 'obVal'], ['Building-to-land ratio', p => p.kind === 'underused' ? p.ratio.toFixed(2) : ''], ['Assessed total', 'assessedTotal'], ['Appraised total', 'appraisedTotal'], ['Last sale date', 'saleDate'], ['Last sale price', 'salePrice'], ['Owner', 'owner'], ['Public or exempt', p => p.isPublic ? 'Yes' : 'No'], ['Coded unbuildable', p => p.unbuildable ? 'Yes' : 'No'], ['Farm or forest', p => p.farmForest ? 'Yes' : 'No'], ['Latitude', p => p.pt ? p.pt[1].toFixed(6) : ''], ['Longitude', p => p.pt ? p.pt[0].toFixed(6) : '']];
+    const cell = v => { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    const csv = [cols.map(c => cell(c[0])).join(',')].concat(filtered.map(p => cols.map(c => cell(typeof c[1] === 'function' ? c[1](p) : p[c[1]])).join(','))).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + csv], {type: 'text/csv'}));
+    a.download = 'redevelopment-parcels.csv'; document.body.appendChild(a); a.click(); a.remove();
+  };
+
+  (async function init(){
+    try {
+      status('Loading zoning districts and parcels…');
+      const zoningP = loadZoning();
+      const townsP = loadTowns().catch(() => []);
+      const featsP = loadParcels(VACANT_WHERE, (d, n) => status('Vacant parcels: ' + fmtN(d) + ' of ' + fmtN(n) + '…'));
+      featsP.catch(() => {});
+
+      const zoning = await zoningP;
+      for (const f of zoning) f.properties._cat = classifyZone(f.properties.ZONECLASS, f.properties.ZONEDESC);
+      zoneIndex = buildZoneIndex(zoning);
+      zoningLayer = L.geoJSON(zoning, {pane: 'zoning', renderer: zoningRenderer, interactive: false, style: zoningStyle}).addTo(map);
+
+      const towns = await townsP;
+      if (towns.length){
+        townsLayer = L.geoJSON(towns, {pane: 'towns', interactive: false, style: {color: '#333', weight: 1.4, dashArray: '4 3', fill: false}}).addTo(map);
+        townsLayer.eachLayer(l => { townBounds[l.feature.properties.Municipali] = l.getBounds(); });
+        map.fitBounds(townsLayer.getBounds());
+      }
+
+      const feats = await featsP;
+      status('Matching parcels to zoning…');
+      parcels = buildParcels(feats, zoneIndex, 'vacant');
+      render();
+      $('kUnd').disabled = false;
+      if (!towns.length) zoomToSelection();
+      status(fmtN(parcels.length) + ' vacant parcels · ' + zoning.length + ' zoning districts · Southeastern CT region', 'ok');
+    } catch (err){
+      console.error(err);
+      status('Could not load data: ' + err.message, 'err');
+    }
+  })();
+})();
+</script>
+</body>
+</html>
