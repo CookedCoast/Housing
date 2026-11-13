@@ -49,7 +49,10 @@
   #list .s{font-size:12px;color:var(--muted)}
   #list .r{text-align:right;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
   #more{padding:10px 14px;font-size:12px;color:var(--muted)}
+  #mapwrap{position:relative;min-height:0;height:100%}
   #map{min-height:0;height:100%;background:#e9ecef}
+  #loading{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:1000;background:var(--ink);color:#fff;padding:9px 16px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.35);max-width:80%;text-align:center}
+  #loading.err{background:#b3261e}
   .mapctl{background:#fff;padding:8px 10px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.3);font-size:12px;min-width:170px}
   .mapctl label{color:var(--ink)}
   .mapctl input[type=range]{width:100%}
@@ -142,7 +145,7 @@
       <div id="more"></div>
     </div>
   </aside>
-  <div id="map"></div>
+  <div id="mapwrap"><div id="map"></div><div id="loading">Loading…</div></div>
 </main>
 
 <script>
@@ -211,6 +214,21 @@ function parcelFlags(a){
     isPublic: /EXEMPT|MUNICIPAL|\bMUN\b|STATE|FEDERAL|NON.?PROFIT|CHURCH|HSNG AUTH|TOWN/.test(d) || /^9\d/.test(u),
     outbuilding: Number(a.Appraised_Outbuilding) > 0 || /\bOB\b|IMP\b|IMPROV/.test(d)
   };
+}
+
+// The district's long name, when the zoning layer records one that says more than the code itself.
+function zoneLongName(cls, desc){
+  const c = (cls || '').trim(), d = (desc || '').trim();
+  const norm = s => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return d && norm(d) !== norm(c) ? d : '';
+}
+// "R-1 — Single-Family Residential"; just the code when there is no long name.
+function zoneTitle(cls, desc){
+  const c = (cls || '').trim(), d = zoneLongName(cls, desc);
+  if (!c) return d || 'Unlabeled district';
+  if (!d) return c;
+  // some towns already repeat the code inside the description ("C-1 General Commercial District")
+  return d.toUpperCase().startsWith(c.toUpperCase() + ' ') ? c + ' — ' + d.slice(c.length).trim() : c + ' — ' + d;
 }
 
 /* ============================== geometry ============================== */
@@ -282,13 +300,21 @@ function zoneAt(index, x, y){
 }
 
 /* ============================== data access ============================== */
+// One ArcGIS query, retried twice on network or server errors (large pages occasionally fail in transit).
 async function arcQuery(url, params, post){
-  const body = new URLSearchParams(params);
-  const res = post ? await fetch(url + '/query', {method: 'POST', body}) : await fetch(url + '/query?' + body);
-  if (!res.ok) throw new Error('HTTP ' + res.status + ' from ' + url);
-  const json = await res.json();
-  if (json.error) throw new Error(json.error.message || 'ArcGIS query error');
-  return json;
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++){
+    if (attempt) await new Promise(r => setTimeout(r, 1500 * attempt));
+    try {
+      const body = new URLSearchParams(params);
+      const res = post ? await fetch(url + '/query', {method: 'POST', body}) : await fetch(url + '/query?' + body);
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' from ' + new URL(url).hostname);
+      const json = await res.json();
+      if (json.error) throw new Error(json.error.message || 'ArcGIS query error');
+      return json;
+    } catch (err){ lastErr = err; }
+  }
+  throw lastErr;
 }
 // Pages through the parcel layer (2,000 features per request) with a few requests in flight at once.
 async function loadParcels(where, onProgress){
@@ -303,7 +329,7 @@ async function loadParcels(where, onProgress){
       if (onProgress) onProgress(Math.min(out.length, total), total);
     }
   }
-  await Promise.all(Array.from({length: 4}, worker));
+  await Promise.all(Array.from({length: 6}, worker));
   return out;
 }
 async function loadZoning(){
@@ -365,11 +391,18 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
   const fmtN = n => Math.round(n).toLocaleString('en-US');
   const fmtA = n => n >= 100 ? fmtN(n) : n.toLocaleString('en-US', {maximumFractionDigits: 2});
   const fmt$ = n => n >= 1e6 ? '$' + (n / 1e6).toFixed(n >= 1e7 ? 1 : 2) + 'M' : '$' + fmtN(n);
-  const status = (t, cls) => { const s = $('status'); s.textContent = t; s.className = cls || ''; };
+  let failed = false;
+  // Header status plus a banner over the map while data is loading. An error stays put: later progress updates must not hide it.
+  const status = (t, cls) => {
+    if (failed && cls !== 'err') return;
+    if (cls === 'err') failed = true;
+    const s = $('status'); s.textContent = t; s.className = cls || '';
+    const b = $('loading'); b.textContent = t; b.className = cls || ''; b.style.display = cls === 'ok' ? 'none' : '';
+  };
 
   const map = L.map('map', {preferCanvas: true}).setView([41.52, -72.12], 10);
-  const light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom: 20, subdomains: 'abcd', attribution: '&copy; OpenStreetMap contributors &copy; CARTO'}).addTo(map);
-  const imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom: 20, maxNativeZoom: 19, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics'});
+  const light = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxZoom: 20, maxNativeZoom: 16, attribution: 'Basemap &copy; Esri, HERE, Garmin, OpenStreetMap contributors'});
+  const imagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom: 20, maxNativeZoom: 19, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics'}).addTo(map);
   map.createPane('zoning').style.zIndex = 350;
   map.createPane('towns').style.zIndex = 360;
   map.createPane('parcels').style.zIndex = 420;
@@ -378,15 +411,15 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
 
   let zoneIndex = [], parcels = [], filtered = [], zoningLayer = null, townsLayer = null, parcelLayer = null;
   const townBounds = {}, layerById = new Map();
-  const state = {cats: new Set(CATS.filter(c => c.id !== 'other' && c.id !== 'open').map(c => c.id)), zoningOpacity: 0.35};
+  const state = {cats: new Set(CATS.filter(c => c.id !== 'other' && c.id !== 'open').map(c => c.id)), zoningOpacity: 0.2};
 
   // map controls: basemap + zoning opacity
   const ctl = L.control({position: 'topright'});
   ctl.onAdd = () => {
     const d = L.DomUtil.create('div', 'mapctl');
-    d.innerHTML = '<label class="check"><input type="checkbox" id="img"> Aerial imagery</label>' +
+    d.innerHTML = '<label class="check"><input type="checkbox" id="img" checked> Aerial imagery</label>' +
       '<label class="check"><input type="checkbox" id="zshow" checked> Zoning districts</label>' +
-      '<label for="zop" style="margin-top:4px">Zoning opacity</label><input type="range" id="zop" min="0" max="80" value="35">';
+      '<label for="zop" style="margin-top:4px">Zoning opacity</label><input type="range" id="zop" min="0" max="80" value="20">';
     L.DomEvent.disableClickPropagation(d); L.DomEvent.disableScrollPropagation(d);
     return d;
   };
@@ -423,7 +456,7 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
       status(fmtN(parcels.length - und.length) + ' vacant · ' + fmtN(und.length) + ' underused candidates · Southeastern CT region', 'ok');
     } catch (err){
       console.error(err); underusedState = 'none'; e.target.checked = false; $('undBox').style.display = 'none';
-      status('Could not load underused parcels: ' + err.message, 'err');
+      status('Could not load underused parcels: ' + err.message, 'err'); failed = false;
     }
     render();
   };
@@ -450,7 +483,7 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
     const sale = p.salePrice > 0 ? fmt$(p.salePrice) + (p.saleDate ? ' (' + esc(p.saleDate) + ')' : '') : esc(p.saleDate);
     return '<div class="pop"><h3>' + esc(p.address) + '</h3><div class="sub">' + esc(p.town) + (p.parcelId ? ' · parcel ' + esc(p.parcelId) : '') + '</div>' +
       '<span class="pill" style="background:' + c.color + '33;border-color:' + c.color + '">' + esc(c.label) + '</span> <span class="pill">' + (p.kind === 'vacant' ? 'Vacant' : 'Underused') + '</span><table style="margin-top:6px">' +
-      row('Mapped zoning', p.zoneCls ? esc(p.zoneCls) + (p.zoneDesc && p.zoneDesc !== p.zoneCls ? ' – ' + esc(p.zoneDesc) : '') : (p.geometry ? 'No district at parcel center' : '')) +
+      row('Mapped zoning', p.zoneCls || p.zoneDesc ? esc(zoneTitle(p.zoneCls, p.zoneDesc)) : (p.geometry ? 'No district at parcel center' : '')) +
       row('Assessor zone', esc(p.camaZone)) +
       row('Assessor use', esc(p.useDesc) + (p.use ? ' (' + esc(p.use) + ')' : '')) +
       row('Acres', p.acres ? fmtA(p.acres) : '') +
@@ -526,7 +559,7 @@ if (typeof document !== 'undefined' && typeof L !== 'undefined') (function(){
   map.on('click', e => {
     const z = zoneAt(zoneIndex, e.latlng.lng, e.latlng.lat); if (!z) return;
     const c = CAT[z.cat];
-    L.popup().setLatLng(e.latlng).setContent('<div class="pop"><h3>' + esc(z.cls || 'Unlabeled district') + '</h3><div class="sub">' + esc(z.desc && z.desc !== z.cls ? z.desc : 'Zoning district') + '</div><span class="pill" style="background:' + c.color + '33;border-color:' + c.color + '">' + esc(c.label) + '</span></div>').openOn(map);
+    L.popup().setLatLng(e.latlng).setContent('<div class="pop"><h3>' + esc(zoneTitle(z.cls, z.desc)) + '</h3><div class="sub">' + (zoneLongName(z.cls, z.desc) ? 'Zoning district' : 'Zoning district · no long name recorded for this code') + '</div><span class="pill" style="background:' + c.color + '33;border-color:' + c.color + '">' + esc(c.label) + '</span></div>').openOn(map);
   });
 
   $('csv').onclick = () => {
