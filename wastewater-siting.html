@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wastewater Siting Screen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;800&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a site engineer's screening worksheet — plain, exact, defensible.
+   IDEA: a soil-survey sheet crossed with a ranked deep-test log.
+   PICTURE: the parcel map coloured by feasibility, beside the ranked log.
+   COLOUR and TYPE: loam brown ink on paper, water-table blue accent, verdict colours; Public Sans + Source Serif titles.
+   LAYOUT: controls column, map, then the full-width ranked table and the site card. */
+:root{color-scheme:light dark;
+--bg:light-dark(#fbfaf7,#16130f);--panel:light-dark(#ffffff,#211c17);--ink:light-dark(#2a211a,#efe8de);--mute:light-dark(#6f6358,#a99c8e);
+--line:light-dark(#e4ddd2,#3a3129);--loam:light-dark(#7a4b2a,#d39a6a);--water:light-dark(#1f5fa8,#6fa8e6);
+--ok:light-dark(#2f7d4f,#5fbf86);--warn:light-dark(#b7791f,#e0a84a);--bad:light-dark(#b23b3b,#e57373);--sew:light-dark(#1f5fa8,#6fa8e6)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Public Sans",system-ui,sans-serif;overflow-x:clip}
+h1,h2{font-family:"Source Serif 4",Georgia,serif;font-weight:600;line-height:1.08;text-wrap:balance;margin:0}
+h1{font-size:clamp(28px,3.4vw,40px)}h2{font-size:22px;margin-bottom:10px}
+.band{padding:clamp(18px,3vw,36px) max(4vw,16px)}
+.wrap{max-width:1320px;margin:0 auto}
+header.band{border-bottom:1px solid var(--line);padding-bottom:16px}
+.lede{color:var(--mute);max-width:72ch;margin:8px 0 0}
+#banner{margin-top:12px;padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-size:14px}
+#banner.off{border-color:var(--warn)}#banner.on{border-color:var(--ok)}
+.grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start}
+@media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.ctl{display:grid;gap:14px}
+fieldset{border:0;padding:0;margin:0;display:grid;gap:8px}
+legend{font-weight:800;font-size:14px;margin-bottom:6px}
+label{font-size:14px;color:var(--mute);display:grid;gap:4px}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+input[type=number],input[type=text],select{font:inherit;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);min-height:44px;width:100%}
+input[type=range]{width:100%;accent-color:var(--loam)}
+.wt{display:grid;grid-template-columns:7.5em minmax(0,1fr) 2.2em;align-items:center;gap:8px;font-size:14px}
+.wt output{text-align:right;font-variant-numeric:tabular-nums}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;color:var(--ink)}
+.seg button[aria-pressed=true]{background:var(--loam);color:var(--bg)}
+button,.btn{font:inherit;font-size:15px;font-weight:600;min-height:44px;padding:8px 14px;border-radius:8px;border:1px solid var(--loam);background:var(--panel);color:var(--loam);cursor:pointer}
+button.pri{background:var(--loam);color:var(--bg)}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:3px solid var(--water);outline-offset:2px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.flow{font-size:14px;background:var(--bg);border:1px dashed var(--line);border-radius:8px;padding:10px 12px}
+.flow b{font-size:20px;font-variant-numeric:tabular-nums}
+.chk{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink)}
+.chk input{width:20px;height:20px;accent-color:var(--loam)}
+#map{height:clamp(360px,52vh,560px);border-radius:10px;border:1px solid var(--line);background:
+ repeating-linear-gradient(0deg,transparent 0 39px,var(--line) 39px 40px),repeating-linear-gradient(90deg,transparent 0 39px,var(--line) 39px 40px),var(--panel)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--mute);margin-top:8px}
+.dot{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:13px;font-weight:700;white-space:nowrap;color:#fff}
+.s-sewer{background:var(--sew)}.s-ok{background:var(--ok)}.s-warn{background:var(--warn)}.s-bad{background:var(--bad)}.s-pend{background:var(--mute)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{font-size:13px;color:var(--mute);font-weight:600}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tbody tr{cursor:pointer}tbody tr:hover,tbody tr.sel{background:light-dark(#f3ede4,#2b241d)}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;min-width:44px}
+.bar i{display:block;height:100%;background:var(--loam)}
+.score{font-weight:800;font-size:16px}
+.empty{color:var(--mute);padding:24px 8px;text-align:center}
+.detail{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;margin-top:12px}
+.crit{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--bg)}
+.crit h3{margin:0 0 4px;font-size:15px;display:flex;justify-content:space-between;gap:8px}
+.crit p{margin:4px 0 0;font-size:14px;color:var(--mute)}
+.flags{margin:10px 0 0;padding-left:18px;font-size:14px}
+.note{font-size:13px;color:var(--mute)}
+details{font-size:14px}summary{cursor:pointer;font-weight:600;min-height:32px}
+pre,.scroll{overflow-x:auto}code{overflow-wrap:anywhere;font-size:13px}
+.leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-layer{position:absolute;left:0;top:0}
+.leaflet-container{overflow:hidden;font:inherit;-webkit-tap-highlight-color:transparent;outline-offset:1px}
+.leaflet-tile{user-select:none;visibility:hidden}.leaflet-tile-loaded{visibility:inherit}
+.leaflet-container img.leaflet-tile{max-width:none!important;max-height:none!important;width:256px;height:256px}
+.leaflet-container .leaflet-overlay-pane svg{max-width:none!important;max-height:none!important}
+.leaflet-pane{z-index:400}.leaflet-tile-pane{z-index:200}.leaflet-overlay-pane{z-index:400}.leaflet-marker-pane{z-index:600}.leaflet-tooltip-pane{z-index:650}.leaflet-popup-pane{z-index:700}
+.leaflet-zoom-animated{transform-origin:0 0}.leaflet-zoom-anim .leaflet-zoom-animated{transition:transform .25s cubic-bezier(0,0,.25,1)}
+.leaflet-interactive{cursor:pointer}.leaflet-grab{cursor:grab}.leaflet-dragging .leaflet-grab{cursor:move}
+.leaflet-top,.leaflet-bottom{position:absolute;z-index:1000;pointer-events:none}.leaflet-top{top:0}.leaflet-right{right:0}.leaflet-bottom{bottom:0}.leaflet-left{left:0}
+.leaflet-control{position:relative;z-index:800;pointer-events:auto;float:left;clear:both}.leaflet-right .leaflet-control{float:right}
+.leaflet-top .leaflet-control{margin-top:10px}.leaflet-left .leaflet-control{margin-left:10px}.leaflet-right .leaflet-control{margin-right:10px}.leaflet-bottom .leaflet-control{margin-bottom:0}
+.leaflet-bar{border-radius:6px;border:1px solid var(--line);overflow:hidden}
+.leaflet-bar a{display:block;width:34px;height:34px;line-height:34px;text-align:center;background:var(--panel);color:var(--ink);text-decoration:none;font-size:18px;border-bottom:1px solid var(--line)}
+.leaflet-bar a:last-child{border-bottom:0}
+.leaflet-control-attribution{background:light-dark(rgba(255,255,255,.85),rgba(0,0,0,.6));padding:0 6px;font-size:11px;color:var(--mute)}
+.leaflet-control-attribution a{color:var(--water)}
+.leaflet-tooltip{position:absolute;padding:4px 8px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:4px;white-space:nowrap;pointer-events:none;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--mute)}.stack td:empty{display:none}.stack td.n{text-align:start}}
+@media(prefers-reduced-motion:reduce){.leaflet-zoom-anim .leaflet-zoom-animated{transition:none}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header class="band"><div class="wrap">
+<p style="margin:0 0 8px;font-size:14px"><a href="index.html" style="color:var(--water)">&larr; Connecticut Housing Maps</a></p>
+<h1>Wastewater feasibility siting screen</h1>
+<p class="lede">Ranks Connecticut parcels for sewer access or septic suitability from public GIS data: SSURGO soils, water table and bedrock, wetland soils and NDDB areas, DPH/DEEP offsets, and the Coastal Boundary. It's a desktop screen to use before deep tests and percolation tests, and it doesn't replace them.</p>
+<div id="banner">Checking whether live GIS lookups are reachable…</div>
+</div></header>
+
+<main class="band"><div class="wrap grid">
+<aside class="card ctl" aria-label="Project inputs">
+ <fieldset><legend>Development</legend>
+  <div class="seg" role="group" aria-label="Development type">
+   <button id="tSF" aria-pressed="true">Single family</button><button id="tMF" aria-pressed="false">Multifamily</button>
+  </div>
+  <div class="row2">
+   <label>Units<input id="units" type="number" min="1" value="1"></label>
+   <label>Bedrooms / unit<input id="br" type="number" min="1" value="3"></label>
+  </div>
+  <div class="flow" id="flowBox"></div>
+ </fieldset>
+
+ <fieldset><legend>Load parcels</legend>
+  <label>GeoJSON (WGS84) or CSV with lat/lon
+   <input id="file" type="file" accept=".geojson,.json,.csv"></label>
+  <div class="btns">
+   <button id="demo">Load sample sites</button>
+   <button id="clickAdd" aria-pressed="false">Add parcel by map click</button>
+  </div>
+  <label>Fallback site size if no parcel is found (acres)<input id="clickAc" type="number" min="0.1" step="0.1" value="1"></label>
+  <button id="run" class="pri" disabled>Run GIS lookups</button>
+  <span class="note" id="runNote"></span>
+ </fieldset>
+
+ <fieldset><legend>Scoring weights</legend><div id="weights"></div></fieldset>
+
+ <fieldset><legend>Design assumptions</legend>
+  <div class="row2">
+   <label>Planning flow, gpd / bedroom<input id="gpdBr" type="number" min="50" value="150"></label>
+   <label>Leaching bottom below grade, in<input id="bottomIn" type="number" min="0" value="18"></label>
+   <label>Lot-line setback, ft<input id="setback" type="number" min="0" value="10"></label>
+   <label>Offset from wetland soils, ft<input id="wetBuf" type="number" min="0" value="50"></label>
+  </div>
+  <label>Septic footprint per 150 gpd, sf (primary + 100% reserve)<input id="fp" type="number" min="100" value="800"></label>
+  <label class="chk"><input id="sewerTop" type="checkbox" checked> Rank sewered parcels first</label>
+  <label class="chk"><input id="hideBad" type="checkbox"> Hide parcels that aren't feasible</label>
+ </fieldset>
+</aside>
+
+<section aria-label="Map">
+ <div id="map"></div>
+ <div class="legend">
+  <span><i class="dot s-sewer"></i>Sewer available</span><span><i class="dot s-ok"></i>Septic feasible</span>
+  <span><i class="dot s-warn"></i>Septic constrained</span><span><i class="dot s-bad"></i>Not feasible</span><span><i class="dot s-pend"></i>Not yet screened</span>
+ </div>
+ <p class="note">The basemap and live lookups load only when this page runs from your own computer or web server. In the hosted view, parcels draw on a plain grid.</p>
+</section>
+</div></main>
+
+<section class="band" style="padding-top:0"><div class="wrap">
+ <div class="card">
+  <div class="btns" style="justify-content:space-between;align-items:center">
+   <h2 style="margin:0">Ranked sites</h2>
+   <div class="btns"><button id="copyCsv">Copy results CSV</button><button id="dlGeo">Download GeoJSON</button></div>
+  </div>
+  <p class="note" id="sampleNote" hidden>Sample sites are invented to show how scoring works. Their soil and constraint values are not real.</p>
+  <div class="scroll"><table class="stack" id="tbl">
+   <thead><tr><th class="n">#</th><th>Site</th><th>Status</th><th class="n">Score</th><th>Soil</th><th>Groundwater</th><th>Bedrock</th><th>Wetland/NDDB</th><th>Offsets</th><th>Coastal</th><th>Review path</th></tr></thead>
+   <tbody id="rows"><tr><td colspan="11" class="empty">Load parcels or the sample sites to start.</td></tr></tbody>
+  </table></div>
+  <div id="detail"></div>
+ </div>
+
+ <details class="card" style="margin-top:16px">
+  <summary>How each criterion is scored, and the data behind it</summary>
+  <div class="scroll" style="margin-top:8px"><table>
+   <thead><tr><th>Criterion</th><th>Data source</th><th>Rule used here</th></tr></thead>
+   <tbody>
+    <tr><td>Sewer access</td><td>CT DEEP Connected Sewer Service Areas (2021)</td><td>Parcel centroid inside a "Connected" area counts as sewer available. Capacity and an allocation still need to be confirmed with the local WPCA.</td></tr>
+    <tr><td>Soil / permeability</td><td>NRCS SSURGO via Soil Data Access</td><td>Half the score is the NRCS "ENG – Septic Tank Absorption Fields" rating (not limited 100, somewhat limited 65, very limited 20). The other half is the slowest saturated hydraulic conductivity (Ksat) between 25 and 152 cm. Ksat of 100 µm/s or more is treated as too fast: it caps the score and triggers 24 in of groundwater separation.</td></tr>
+    <tr><td>Groundwater</td><td>SSURGO minimum annual depth to water table</td><td>Margin = water-table depth − leaching bottom − required separation (18 in, or 24 in for 2,000 gpd and up, coastal, or very fast soils). No water table within 200 cm scores full.</td></tr>
+    <tr><td>Bedrock</td><td>SSURGO minimum depth to bedrock</td><td>Margin = rock depth − leaching bottom − 48 in. A water table under 12 in or rock under 24 in below grade marks the site not feasible.</td></tr>
+    <tr><td>Wetlands / NDDB</td><td>SSURGO drainage class and flooding; CT DEEP NDDB Areas</td><td>Poorly drained, very poorly drained and floodplain map units count as wetland soils (the soil-based CT definition). Score = upland share of the parcel. An NDDB overlap subtracts 35 points and flags an NDDB review request.</td></tr>
+    <tr><td>DEEP / DPH offsets</td><td>Parcel geometry, wetland soils</td><td>Usable area = the parcel shrunk by the lot-line setback, minus wetland soils buffered by the wetland offset. It is compared with the footprint needed for the design flow. Below 1.0× is not feasible.</td></tr>
+    <tr><td>Coastal zone</td><td>CT DEEP Coastal Boundary</td><td>Inside the boundary: 45 points, CAM consistency review, and 24 in groundwater separation.</td></tr>
+   </tbody></table></div>
+  <p class="note">Review paths follow the design-flow thresholds: under 2,000 gpd, local director of health; 2,000–7,500 gpd, DPH plan approval; over 7,500 gpd on one site, a DEEP subsurface discharge permit. Vertical separations follow the DPH Technical Standards: the bottom of the leaching system at least 18 in above maximum groundwater (24 in for large systems, fast perc or tidal areas) and 48 in above ledge. Horizontal offsets that GIS can't see are not checked: wells (75 ft and up), open watercourses (50 ft), foundations, drains and slopes.</p>
+ </details>
+
+ <details class="card" style="margin-top:16px">
+  <summary>Bring your own attributes (no live lookup needed)</summary>
+  <p class="note">If your GIS has already overlaid the layers, include these properties (GeoJSON) or columns (CSV with <code>lat</code>, <code>lon</code>). Any value you supply is used as is. Missing values are fetched live when possible.</p>
+  <pre><code>name, sewer (Y/N), septic_rating (Not limited | Somewhat limited | Very limited),
+ksat_min, ksat_max (µm/s), wt_in, rock_in (inches below grade; blank = deeper than 79 in),
+wetland_pct (0–100), nddb (Y/N), coastal (Y/N), area_sf, usable_sf</code></pre>
+ </details>
+</div></section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+<script>
+{
+const $=id=>document.getElementById(id);
+const SDA='https://sdmdataaccess.sc.egov.usda.gov/Tabular/post.rest';
+const AGO='https://services1.arcgis.com/FjPcSmEFuDYlIdKC/ArcGIS/rest/services/';
+const L_SEWER=AGO+'Connected_Sewer_Service_Areas/FeatureServer/0';
+const L_NDDB=AGO+'Natural_Diversity_Database/FeatureServer/0';
+const L_COAST=AGO+'Coastal_Boundary/FeatureServer/0';
+const L_PARCEL='https://services3.arcgis.com/3FL1kr7L4LvwA2Kb/arcgis/rest/services/Connecticut_CAMA_and_Parcel_Layer/FeatureServer/0';
+const M2SF=10.7639;
+const W_DEF={soil:25,gw:20,rock:15,eco:15,off:15,coast:10};
+const W_LBL={soil:'Soil',gw:'Groundwater',rock:'Bedrock',eco:'Wetland/NDDB',off:'Offsets',coast:'Coastal'};
+const S={type:'sf',sites:[],sel:null,live:null,clickMode:false,w:{...W_DEF},seq:0};
+const hasTurf=typeof turf!=='undefined', hasL=typeof L!=='undefined';
+const num=v=>{if(v===null||v===undefined||v==='')return null;const n=+v;return isFinite(n)?n:null};
+const yn=v=>{if(v===null||v===undefined||v==='')return null;const s=String(v).trim().toLowerCase();return ['y','yes','true','1'].includes(s)?true:['n','no','false','0'].includes(s)?false:null};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=(n,d=0)=>n==null?'—':Number(n).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
+const clamp=(x,a=0,b=100)=>Math.max(a,Math.min(b,x));
+
+/* ---------- inputs ---------- */
+function cfg(){return{units:Math.max(1,num($('units').value)||1),br:Math.max(1,num($('br').value)||1),gpdBr:num($('gpdBr').value)||150,
+ bottomIn:num($('bottomIn').value)??18,setback:num($('setback').value)??10,wetBuf:num($('wetBuf').value)??50,fp:num($('fp').value)||800,
+ sewerTop:$('sewerTop').checked,hideBad:$('hideBad').checked}}
+function flow(c){return (S.type==='sf'?1:c.units)*c.br*c.gpdBr}
+function path(q){return q>7500?{k:'DEEP',t:'DEEP subsurface discharge permit'}:q>=2000?{k:'DPH',t:'DPH large-system plan approval'}:{k:'Local',t:'Local director of health'}}
+function renderFlow(){const c=cfg(),q=flow(c),p=path(q);
+ $('flowBox').innerHTML=`Design flow <b>${fmt(q)}</b> gpd · ${esc(p.t)}<br><span class="note">Septic footprint needed ≈ ${fmt(q/150*c.fp)} sf · groundwater separation ${q>=2000?24:18} in or more</span>`}
+function setType(t){S.type=t;$('tSF').setAttribute('aria-pressed',t==='sf');$('tMF').setAttribute('aria-pressed',t==='mf');
+ $('units').disabled=t==='sf';if(t==='sf')$('units').value=1;else if(+$('units').value<2)$('units').value=12;update()}
+$('weights').innerHTML=Object.keys(W_DEF).map(k=>`<div class="wt"><span>${W_LBL[k]}</span><input type="range" min="0" max="40" value="${W_DEF[k]}" id="w_${k}" aria-label="${W_LBL[k]} weight"><output id="o_${k}">${W_DEF[k]}</output></div>`).join('');
+
+/* ---------- map ---------- */
+let map=null,layer=null;
+if(hasL){map=L.map('map',{zoomControl:true,attributionControl:true}).setView([41.6,-72.7],9);
+ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+ layer=L.featureGroup().addTo(map);
+ map.on('click',async e=>{if(!S.clickMode||!hasTurf)return;const ll=[e.latlng.lng,e.latlng.lat];
+  if(S.live){try{const body=new URLSearchParams({f:'geojson',geometry:ll.join(','),geometryType:'esriGeometryPoint',inSR:'4326',spatialRel:'esriSpatialRelIntersects',
+    outFields:'Town_Name,Location,Parcel_ID,Land_Acres',outSR:'4326',geometryPrecision:'6',returnGeometry:'true'});
+   const j=await (await fetch(L_PARCEL+'/query',{method:'POST',body})).json();const f=(j.features||[])[0];
+   if(f&&f.geometry){const p=f.properties||{};if(S.sites.some(s=>s.props.Parcel_ID&&s.props.Parcel_ID===p.Parcel_ID&&s.props.Town_Name===p.Town_Name))return;
+    addSites([{name:[p.Location,p.Town_Name].filter(Boolean).join(', ')||'Parcel '+(p.Parcel_ID||''),geom:f.geometry,props:p}]);return}}catch(err){}}
+  const ac=Math.max(.1,num($('clickAc').value)||1);
+  const r=Math.sqrt(ac*43560/Math.PI);const g=turf.circle(ll,r,{units:'feet',steps:24});
+  addSites([{name:'Clicked site '+(S.sites.length+1),geom:g.geometry,props:{}}]);});
+}else{$('map').innerHTML='<p class="empty">Map library did not load.</p>'}
+const COL={sewer:'--sew',ok:'--ok',warn:'--warn',bad:'--bad',pend:'--mute'};
+const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim()||'#888';
+
+/* ---------- loading ---------- */
+function addSites(list){for(const it of list){const id='s'+(++S.seq);
+ let g=it.geom;if(!g)continue;
+ if(g.type==='Point'&&hasTurf){const a=num(it.props.area_sf)||43560;g=turf.circle(g.coordinates,Math.sqrt(a/Math.PI),{units:'feet',steps:24}).geometry}
+ const f={type:'Feature',geometry:g,properties:{}};
+ const areaSf=num(it.props.area_sf)??(hasTurf?turf.area(f)*M2SF:null);
+ S.sites.push({id,name:it.name||id,f,areaSf,props:it.props||{},d:fromProps(it.props||{}),st:'pend',sample:!!it.sample})}
+ update(true)}
+function fromProps(p){const g=k=>{for(const key in p)if(key.toLowerCase()===k)return p[key];return undefined};
+ const d={};
+ const sw=yn(g('sewer'));if(sw!==null)d.sewer=sw;
+ const sr=g('septic_rating');if(sr)d.septic=String(sr);
+ for(const k of ['ksat_min','ksat_max','wt_in','rock_in','wetland_pct','usable_sf']){const v=g(k);if(v!==undefined&&v!==''){d[k]=num(v)}}
+ const nd=yn(g('nddb'));if(nd!==null)d.nddb=nd;const co=yn(g('coastal'));if(co!==null)d.coastal=co;
+ if(g('wt_in')===''||g('rock_in')===''){/* blank = deep */}
+ return d}
+function parseCSV(t){const rows=[];let r=[],v='',q=false;for(let i=0;i<t.length;i++){const c=t[i];
+ if(q){if(c==='"'){if(t[i+1]==='"'){v+='"';i++}else q=false}else v+=c}
+ else if(c==='"')q=true;else if(c===','){r.push(v);v=''}else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;r.push(v);rows.push(r);r=[];v=''}else v+=c}
+ if(v||r.length){r.push(v);rows.push(r)}const h=rows.shift().map(s=>s.trim());
+ return rows.filter(x=>x.some(s=>s.trim())).map(x=>Object.fromEntries(h.map((k,i)=>[k,(x[i]??'').trim()])))}
+$('file').addEventListener('change',async e=>{const fl=e.target.files[0];if(!fl)return;const t=await fl.text();
+ try{if(/\.csv$/i.test(fl.name)){const recs=parseCSV(t);
+   addSites(recs.map((p,i)=>{const lat=num(p.lat??p.latitude??p.y),lon=num(p.lon??p.lng??p.longitude??p.x);
+    return lat==null||lon==null?null:{name:p.name||p.id||'Row '+(i+1),geom:{type:'Point',coordinates:[lon,lat]},props:p}}).filter(Boolean))}
+  else{const j=JSON.parse(t);const fs=j.type==='FeatureCollection'?j.features:j.type==='Feature'?[j]:[];
+   const bad=fs.find(f=>{const c=JSON.stringify(f.geometry?.coordinates||[]).match(/-?\d+\.?\d*/);return c&&Math.abs(+c[0])>180});
+   if(bad){$('runNote').textContent='Coordinates look projected. Re-export the GeoJSON in WGS84 (EPSG:4326).';return}
+   addSites(fs.map((f,i)=>{const p=f.properties||{};return{name:p.name||p.NAME||p.address||p.ADDRESS||p.PIN||p.pin||p.id||'Parcel '+(i+1),geom:f.geometry,props:p}}))}
+  fit()}catch(err){$('runNote').textContent='Could not read that file: '+err.message}});
+
+/* ---------- live lookups ---------- */
+async function probe(){if(location.protocol==='blob:'||!window.fetch){S.live=false;return banner()}
+ try{const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),7000);
+  const r=await fetch(L_COAST+'?f=json',{signal:ctl.signal});clearTimeout(t);S.live=r.ok}catch(e){S.live=false}banner()}
+function banner(){const b=$('banner');b.className=S.live?'on':'off';
+ b.innerHTML=S.live?'Live lookups are available: NRCS Soil Data Access and CT DEEP layers will be queried for each parcel.'
+ :'Live lookups are blocked in this hosted view. Open the downloaded HTML file in your browser to query SSURGO and CT DEEP layers. Here you can still load parcels that already carry attributes, or try the sample sites.';update()}
+function ringsWKT(g){const ring=r=>'('+r.map(p=>(+p[0]).toFixed(7)+' '+(+p[1]).toFixed(7)).join(',')+')';
+ const poly=p=>'('+p.map(ring).join(',')+')';
+ return g.type==='Polygon'?'POLYGON'+poly(g.coordinates):'MULTIPOLYGON('+g.coordinates.map(poly).join(',')+')'}
+function parseWKT(w){/* returns array of polygons (arrays of rings) from POLYGON/MULTIPOLYGON/GEOMETRYCOLLECTION */
+ const out=[];const re=/(MULTIPOLYGON|POLYGON)\s*(\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\))/gi;let m;
+ const rings=s=>[...s.matchAll(/\(([^()]+)\)/g)].map(x=>x[1].split(',').map(p=>p.trim().split(/\s+/).map(Number)));
+ while((m=re.exec(w))){if(m[1].toUpperCase()==='POLYGON')out.push(rings(m[2]));
+  else{const body=m[2].slice(1,-1);let depth=0,st=0;for(let i=0;i<body.length;i++){if(body[i]==='(')depth++;else if(body[i]===')'){depth--;if(depth===0){out.push(rings(body.slice(st,i+1)));}}else if(body[i]===','&&depth===0)st=i+1}}}
+ return out.filter(p=>p.length&&p[0].length>=4)}
+async function sda(sql){const body=new URLSearchParams({query:sql,format:'JSON+COLUMNNAME'});
+ const r=await fetch(SDA,{method:'POST',body});if(!r.ok)throw new Error('SDA '+r.status);const j=await r.json();
+ if(!j.Table)return[];const [h,...rows]=j.Table;return rows.map(x=>Object.fromEntries(h.map((k,i)=>[k,x[i]])))}
+async function ago(url,geom,type,extra){const body=new URLSearchParams({f:'json',geometry:JSON.stringify(geom),geometryType:type,inSR:'4326',
+ spatialRel:'esriSpatialRelIntersects',returnGeometry:'false',...extra});
+ const r=await fetch(url+'/query',{method:'POST',body});const j=await r.json();if(j.error)throw new Error(j.error.message);return j}
+async function lookup(s){const g=turf.simplify(turf.cleanCoords(s.f),{tolerance:0.000005,highQuality:true}).geometry;
+ const c=turf.pointOnFeature(s.f).geometry.coordinates;const pt={x:c[0],y:c[1],spatialReference:{wkid:4326}};
+ const esriPoly={rings:(g.type==='Polygon'?[g.coordinates]:g.coordinates).flat(),spatialReference:{wkid:4326}};
+ const tasks=[];const d=s.d;
+ if(d.sewer===undefined)tasks.push(ago(L_SEWER,pt,'esriGeometryPoint',{outFields:'TOWN,Sewers,SewerStatus,TreatmentFacility'}).then(j=>{
+  const a=(j.features||[]).map(f=>f.attributes);const con=a.find(x=>/connected/i.test(x.SewerStatus||'')&&!/not/i.test(x.SewerStatus||'')||/existing/i.test(x.Sewers||''));
+  d.sewer=!!con;d.sewerTxt=con?`${con.TOWN||''} → ${con.TreatmentFacility||'WPCF'}`:(a[0]?.TOWN?a[0].TOWN+': not in a connected area':'')}));
+ if(d.nddb===undefined)tasks.push(ago(L_NDDB,esriPoly,'esriGeometryPolygon',{returnCountOnly:'true'}).then(j=>{d.nddb=(j.count||0)>0}));
+ if(d.coastal===undefined)tasks.push(ago(L_COAST,esriPoly,'esriGeometryPolygon',{returnCountOnly:'true'}).then(j=>{d.coastal=(j.count||0)>0}));
+ const needSoil=['septic','ksat_min','wt_in','rock_in','wetland_pct'].some(k=>d[k]===undefined);
+ if(needSoil){const W=ringsWKT(g).replace(/'/g,'');const A=`geometry::STGeomFromText('${W}',4326)`;
+  const dom=`(SELECT TOP 1 c2.cokey FROM component c2 WHERE c2.mukey=P.mukey ORDER BY c2.comppct_r DESC)`;
+  const sql=`SELECT P.mukey, P.mupolygongeo.STIntersection(${A}).STAsText() AS wkt, mu.muname, ma.drclassdcd, ma.brockdepmin, ma.wtdepannmin, ma.flodfreqdcd,
+ (SELECT TOP 1 ci.interphrc FROM component c INNER JOIN cointerp ci ON ci.cokey=c.cokey WHERE c.mukey=P.mukey AND ci.mrulename='ENG - Septic Tank Absorption Fields' AND ci.ruledepth=0 ORDER BY c.comppct_r DESC) AS septic,
+ (SELECT MIN(h.ksat_r) FROM chorizon h WHERE h.cokey=${dom} AND h.hzdept_r<152 AND h.hzdepb_r>25) AS ksat_min,
+ (SELECT MAX(h.ksat_r) FROM chorizon h WHERE h.cokey=${dom} AND h.hzdept_r<152 AND h.hzdepb_r>25) AS ksat_max
+FROM mupolygon P INNER JOIN mapunit mu ON mu.mukey=P.mukey INNER JOIN muaggatt ma ON ma.mukey=P.mukey
+WHERE P.mupolygongeo.STIntersects(${A})=1`;
+  tasks.push(sda(sql).then(rows=>soilSummary(s,rows)))}
+ await Promise.all(tasks)}
+function isWet(r){return /poorly/i.test(r.drclassdcd||'')&&!/somewhat poorly/i.test(r.drclassdcd||'')||['Occasional','Frequent','Very frequent'].includes(r.flodfreqdcd)}
+function soilSummary(s,rows){const c=cfg();const mu={};const wetPolys=[];
+ for(const r of rows){const polys=parseWKT(r.wkt||'');let a=0;
+  for(const p of polys){const f=turf.polygon(p);a+=turf.area(f);if(isWet(r))wetPolys.push(f)}
+  const m=mu[r.mukey]||(mu[r.mukey]={...r,area:0});m.area+=a}
+ const list=Object.values(mu);const tot=list.reduce((x,m)=>x+m.area,0)||1;list.forEach(m=>m.share=m.area/tot);
+ s.soils=list.sort((a,b)=>b.share-a.share);
+ const d=s.d;
+ if(d.wetland_pct===undefined)d.wetland_pct=100*list.filter(isWet).reduce((x,m)=>x+m.share,0);
+ const up=list.filter(m=>!isWet(m)&&m.share>=0.08);
+ const cand=up.map(m=>({m,sc:critScores({septic:m.septic,ksat_min:num(m.ksat_min),ksat_max:num(m.ksat_max),wt_in:m.wtdepannmin==null?null:m.wtdepannmin/2.54,rock_in:m.brockdepmin==null?null:m.brockdepmin/2.54},c,flow(c),d.coastal)}))
+  .sort((a,b)=>(b.sc.soil+b.sc.gw+b.sc.rock)-(a.sc.soil+a.sc.gw+a.sc.rock))[0];
+ const pick=cand?cand.m:list[0];
+ if(pick){s.evalOn=`${pick.muname} (${fmt(pick.share*100)}% of parcel)`;
+  if(d.septic===undefined)d.septic=pick.septic||null;
+  if(d.ksat_min===undefined)d.ksat_min=num(pick.ksat_min);if(d.ksat_max===undefined)d.ksat_max=num(pick.ksat_max);
+  if(d.wt_in===undefined)d.wt_in=pick.wtdepannmin==null?null:pick.wtdepannmin/2.54;
+  if(d.rock_in===undefined)d.rock_in=pick.brockdepmin==null?null:pick.brockdepmin/2.54;
+  s.noUpland=!cand}
+ if(d.usable_sf===undefined){try{let f=turf.buffer(s.f,-c.setback,{units:'feet'});
+   if(f&&wetPolys.length){let wet=wetPolys.map(p=>turf.buffer(p,c.wetBuf,{units:'feet'})).reduce((a,b)=>a?turf.union(a,b):b,null);
+    f=wet?turf.difference(f,wet):f}
+   d.usable_sf=f?turf.area(f)*M2SF:0}catch(e){d.usable_sf=s.areaSf?s.areaSf*(1-d.wetland_pct/100):null}}}
+async function runAll(){const btn=$('run');btn.disabled=true;const todo=S.sites.filter(s=>s.st!=='done');let n=0;
+ const work=async()=>{while(todo.length){const s=todo.shift();s.st='busy';try{await lookup(s);s.st='done'}catch(e){s.st='err';s.err=e.message}
+  n++;$('runNote').textContent=`Screened ${n} site${n>1?'s':''}…`;update()}};
+ await Promise.all([work(),work()]);$('runNote').textContent='Done. Click a row for detail.';btn.disabled=false;update()}
+
+/* ---------- scoring ---------- */
+function ksatScore(mn,mx){if(mn==null&&mx==null)return null;let s=mn==null?70:mn<0.01?0:mn<0.1?10:mn<1?40:mn<10?85:100;if(mx!=null&&mx>=100)s=Math.min(s,55);return s}
+function margin(s,m){return m>=24?100:m>=0?70+30*m/24:m>=-24?35+35*(m+24)/24:Math.max(0,35+(m+24)*1.5)}
+function critScores(d,c,q,coastal){const rate={'not limited':100,'somewhat limited':65,'very limited':20}[String(d.septic||'').toLowerCase()];
+ const ks=ksatScore(d.ksat_min,d.ksat_max);const soil=rate==null&&ks==null?50:rate==null?ks:ks==null?rate:(rate+ks)/2;
+ const fast=d.ksat_max!=null&&d.ksat_max>=100;const sep=(q>=2000||coastal||fast)?24:18;
+ const wt=d.wt_in==null?80:d.wt_in,rk=d.rock_in==null?80:d.rock_in;
+ const gm=wt-c.bottomIn-sep,rm=rk-c.bottomIn-48;
+ return{soil,gw:d.wt_in==null?100:margin(0,gm),rock:d.rock_in==null?100:margin(0,rm),gm,rm,sep,wt,rk,fast}}
+function score(s){const c=cfg(),q=flow(c),d=s.d;const k=critScores(d,c,q,d.coastal);
+ const wet=d.wetland_pct??0;let eco=clamp(100-wet);if(d.nddb)eco=clamp(eco-35);
+ const need=q/150*c.fp;const usable=d.usable_sf??(s.areaSf!=null?s.areaSf*(1-wet/100)-0:null);const ratio=usable==null?null:usable/need;
+ const off=ratio==null?50:ratio>=2?100:ratio>=1?60+40*(ratio-1):60*Math.max(0,ratio);
+ const coast=d.coastal?45:100;
+ const sc={soil:k.soil,gw:k.gw,rock:k.rock,eco,off,coast};
+ const tw=Object.values(S.w).reduce((a,b)=>a+b,0)||1;const total=Object.keys(sc).reduce((a,x)=>a+sc[x]*S.w[x],0)/tw;
+ const flags=[];
+ if(k.wt<12)flags.push('Seasonal water table within 12 in of grade');
+ if(k.rk<24)flags.push('Bedrock within 24 in of grade');
+ if(ratio!=null&&ratio<1)flags.push(`Usable area after offsets is ${fmt(ratio,2)}× the footprint needed`);
+ if(s.noUpland)flags.push('No upland soil map unit covers 8% or more of the parcel');
+ const fatal=flags.length>0;
+ const soft=[];if(d.nddb)soft.push('Overlaps an NDDB area: submit an NDDB environmental review request');
+ if(d.coastal)soft.push('Inside the Coastal Boundary: CAM consistency review; 24 in groundwater separation assumed');
+ if(k.fast)soft.push('Very rapid Ksat layer: limited renovation; separation distances may double near ledge');
+ if(k.gm<0)soft.push(`Water-table margin ${fmt(k.gm)} in: likely needs fill or a raised system`);
+ if(k.rm<0)soft.push(`Ledge margin ${fmt(k.rm)} in: likely needs fill`);
+ if(wet>=25)soft.push(`${fmt(wet)}% wetland soils: inland wetlands permit likely for work nearby`);
+ if(q>7500)soft.push('Over 7,500 gpd: DEEP permit with a hydrogeologic and renovation analysis');
+ let st;if(d.sewer)st='sewer';else if(fatal)st='bad';else if(total<60||Object.values(sc).some(v=>v<35)||d.nddb||d.coastal)st='warn';else st='ok';
+ return{sc,total,st,flags,soft,ratio,need,usable,k,q}}
+const ST_TXT={sewer:'Sewer available',ok:'Septic feasible',warn:'Septic constrained',bad:'Not feasible',pend:'Not yet screened'};
+const TIER={sewer:0,ok:1,warn:2,bad:3,pend:4};
+
+/* ---------- render ---------- */
+function ready(s){const d=s.d;return s.st==='done'||(['septic','ksat_min','wt_in','rock_in','wetland_pct','nddb','coastal','sewer'].filter(k=>d[k]!==undefined).length>=6)}
+function ranked(){const c=cfg();return S.sites.map(s=>({s,r:ready(s)?score(s):null})).sort((a,b)=>{
+ const ta=a.r?(c.sewerTop?TIER[a.r.st]:(a.r.st==='sewer'?1:TIER[a.r.st])):4,tb=b.r?(c.sewerTop?TIER[b.r.st]:(b.r.st==='sewer'?1:TIER[b.r.st])):4;
+ return ta-tb||(b.r?.total??-1)-(a.r?.total??-1)})}
+const bar=v=>v==null?'—':`<div class="bar" title="${fmt(v)}"><i style="width:${clamp(v)}%"></i></div>`;
+function update(refit){renderFlow();Object.keys(W_DEF).forEach(k=>{S.w[k]=+$('w_'+k).value;$('o_'+k).textContent=S.w[k]});
+ const c=cfg();const R=ranked();$('run').disabled=!S.live||!hasTurf||!S.sites.some(s=>s.st!=='done'&&!ready(s));
+ $('sampleNote').hidden=!S.sites.some(s=>s.sample);
+ const vis=R.filter(x=>!(c.hideBad&&x.r?.st==='bad'));
+ $('rows').innerHTML=vis.length?vis.map(({s,r},i)=>{const st=s.st==='busy'?'pend':s.st==='err'?'bad':r?r.st:'pend';
+  const lbl=s.st==='busy'?'Querying…':s.st==='err'?'Lookup failed':ST_TXT[st];
+  return `<tr data-id="${s.id}" class="${S.sel===s.id?'sel':''}" tabindex="0"><td class="n">${r?i+1:''}</td><td>${esc(s.name)}</td><td><span class="pill s-${st}">${lbl}</span></td>
+  <td class="n score">${r?fmt(r.total):'—'}</td><td>${bar(r?.sc.soil)}</td><td>${bar(r?.sc.gw)}</td><td>${bar(r?.sc.rock)}</td><td>${bar(r?.sc.eco)}</td><td>${bar(r?.sc.off)}</td><td>${bar(r?.sc.coast)}</td>
+  <td>${r?(r.st==='sewer'?'Local WPCA':path(r.q).k):''}</td></tr>`}).join(''):`<tr><td colspan="11" class="empty">${S.sites.length?'Every site is hidden by the “not feasible” filter.':'Load parcels or the sample sites to start.'}</td></tr>`;
+ if(layer){layer.clearLayers();for(const {s,r} of R){const st=s.st==='err'?'bad':r?r.st:'pend';const col=cssv(COL[st]);
+  L.geoJSON(s.f,{style:{color:col,weight:S.sel===s.id?4:2,fillColor:col,fillOpacity:S.sel===s.id?.45:.3}}).bindTooltip(`${esc(s.name)} · ${ST_TXT[st]}${r?' · '+fmt(r.total):''}`).on('click',()=>select(s.id)).addTo(layer);if(hasTurf){const c=turf.centroid(s.f).geometry.coordinates;L.circleMarker([c[1],c[0]],{radius:S.sel===s.id?9:6,color:'#fff',weight:2,fillColor:col,fillOpacity:1}).bindTooltip(esc(s.name)).on('click',()=>select(s.id)).addTo(layer)}}
+  if(refit)fit()}
+ renderDetail()}
+function fit(){if(layer&&layer.getLayers().length)map.fitBounds(layer.getBounds(),{padding:[30,30],maxZoom:17})}
+function select(id){S.sel=id;update();const f=S.sites.find(s=>s.id===id);if(f&&layer)map.fitBounds(L.geoJSON(f.f).getBounds(),{maxZoom:17,padding:[40,40]});
+ $('detail').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth',block:'nearest'})}
+$('rows').addEventListener('click',e=>{const tr=e.target.closest('tr[data-id]');if(tr)select(tr.dataset.id)});
+$('rows').addEventListener('keydown',e=>{if(e.key==='Enter'){const tr=e.target.closest('tr[data-id]');if(tr)select(tr.dataset.id)}});
+function renderDetail(){const s=S.sites.find(x=>x.id===S.sel);if(!s){$('detail').innerHTML='';return}
+ if(s.st==='err'){$('detail').innerHTML=`<p class="note">Lookup failed for ${esc(s.name)}: ${esc(s.err)}</p>`;return}
+ if(!ready(s)){$('detail').innerHTML=`<p class="note">${esc(s.name)} hasn't been screened yet. Run the GIS lookups or supply attributes.</p>`;return}
+ const r=score(s),d=s.d,k=r.k,c=cfg();
+ const crit=[
+  ['Soil / permeability',r.sc.soil,`NRCS septic rating: ${esc(d.septic||'not rated')}. Ksat ${fmt(d.ksat_min,1)}–${fmt(d.ksat_max,1)} µm/s between 25 and 152 cm.`+(s.evalOn?` Evaluated on ${esc(s.evalOn)}.`:'')],
+  ['Groundwater',r.sc.gw,`Seasonal high water ${d.wt_in==null?'deeper than 79':fmt(k.wt)} in. With an ${c.bottomIn} in leaching bottom and ${k.sep} in of separation, the margin is ${fmt(k.gm)} in.`],
+  ['Bedrock',r.sc.rock,`Depth to rock ${d.rock_in==null?'deeper than 79':fmt(k.rk)} in. With 48 in of required separation, the margin is ${fmt(k.rm)} in.`],
+  ['Wetlands / NDDB',r.sc.eco,`${fmt(d.wetland_pct??0)}% wetland soils. ${d.nddb?'Overlaps an NDDB area.':'No NDDB overlap.'}`],
+  ['DEEP / DPH offsets',r.sc.off,`Usable ${fmt(r.usable)} sf vs ${fmt(r.need)} sf needed (${r.ratio==null?'—':fmt(r.ratio,2)+'×'}). Parcel ${fmt(s.areaSf)} sf.`],
+  ['Coastal zone',r.sc.coast,d.coastal?'Inside the CT Coastal Boundary.':'Outside the Coastal Boundary.']];
+ $('detail').innerHTML=`<h2 style="margin-top:18px">${esc(s.name)} <span class="pill s-${r.st}">${ST_TXT[r.st]}</span></h2>
+ <p class="note">${fmt(r.q)} gpd · ${r.st==='sewer'?'Sewer: '+esc(d.sewerTxt||'inside a connected sewer service area')+'. Confirm capacity and allocation with the WPCA. Septic scores are shown for reference.':esc(path(r.q).t)}</p>
+ <div class="detail">${crit.map(([t,v,p])=>`<div class="crit"><h3><span>${t}</span><span>${fmt(v)}</span></h3>${bar(v)}<p>${p}</p></div>`).join('')}</div>
+ ${r.flags.length?`<p style="margin:12px 0 0;font-weight:700;color:var(--bad)">Not feasible for septic because:</p><ul class="flags">${r.flags.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:''}
+ ${r.soft.length?`<p style="margin:12px 0 0;font-weight:700">Flags to check</p><ul class="flags">${r.soft.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:''}
+ ${s.soils?`<details style="margin-top:10px"><summary>Soil map units on this parcel</summary><div class="scroll"><table><thead><tr><th>Map unit</th><th class="n">Share</th><th>Drainage</th><th class="n">Water table, in</th><th class="n">Rock, in</th><th>Septic rating</th></tr></thead><tbody>
+  ${s.soils.map(m=>`<tr><td>${esc(m.muname)}</td><td class="n">${fmt(m.share*100)}%</td><td>${esc(m.drclassdcd||'—')}</td><td class="n">${m.wtdepannmin==null?'>79':fmt(m.wtdepannmin/2.54)}</td><td class="n">${m.brockdepmin==null?'>79':fmt(m.brockdepmin/2.54)}</td><td>${esc(m.septic||'—')}</td></tr>`).join('')}</tbody></table></div></details>`:''}`}
+
+/* ---------- export ---------- */
+function rowsOut(){return ranked().map(({s,r},i)=>({rank:r?i+1:'',name:s.name,status:r?ST_TXT[r.st]:'Not screened',score:r?Math.round(r.total):'',
+ soil:r?Math.round(r.sc.soil):'',groundwater:r?Math.round(r.sc.gw):'',bedrock:r?Math.round(r.sc.rock):'',wetland_nddb:r?Math.round(r.sc.eco):'',offsets:r?Math.round(r.sc.off):'',coastal:r?Math.round(r.sc.coast):'',
+ design_gpd:r?r.q:'',review:r?(r.st==='sewer'?'WPCA':path(r.q).t):'',sewer:s.d.sewer??'',septic_rating:s.d.septic??'',ksat_min:s.d.ksat_min??'',wt_in:s.d.wt_in==null?'':Math.round(s.d.wt_in),rock_in:s.d.rock_in==null?'':Math.round(s.d.rock_in),
+ wetland_pct:s.d.wetland_pct==null?'':Math.round(s.d.wetland_pct),nddb:s.d.nddb??'',coastal_zone:s.d.coastal??'',usable_sf:r?.usable==null?'':Math.round(r.usable),flags:r?[...r.flags,...r.soft].join('; '):''}))}
+$('copyCsv').addEventListener('click',async()=>{const o=rowsOut();if(!o.length)return;const h=Object.keys(o[0]);
+ const csv=[h.join(','),...o.map(x=>h.map(k=>`"${String(x[k]).replace(/"/g,'""')}"`).join(','))].join('\n');
+ try{await navigator.clipboard.writeText(csv);$('copyCsv').textContent='Copied'}catch(e){$('copyCsv').textContent='Copy blocked'}setTimeout(()=>$('copyCsv').textContent='Copy results CSV',1800)});
+const framed=(()=>{try{return window.self!==window.top}catch(e){return true}})();
+if(framed)$('dlGeo').hidden=true;
+$('dlGeo').addEventListener('click',()=>{const o=rowsOut();const fc={type:'FeatureCollection',features:ranked().map(({s},i)=>({...s.f,properties:o[i]}))};
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(fc)],{type:'application/geo+json'}));a.download='wastewater_siting_results.geojson';a.click()});
+
+/* ---------- sample ---------- */
+function sq(lon,lat,ac){const h=Math.sqrt(ac*43560)/2/364000,w=h/Math.cos(lat*Math.PI/180);return{type:'Polygon',coordinates:[[[lon-w,lat-h],[lon+w,lat-h],[lon+w,lat+h],[lon-w,lat+h],[lon-w,lat-h]]]}}
+const SAMPLE=[
+ ['Hillside lot, Route 44',-72.93,41.86,2.1,{sewer:'N',septic_rating:'Somewhat limited',ksat_min:4.2,ksat_max:28,wt_in:'',rock_in:'',wetland_pct:0,nddb:'N',coastal:'N'}],
+ ['Village infill, Main St',-72.65,41.56,0.6,{sewer:'Y',septic_rating:'Very limited',ksat_min:0.6,ksat_max:9,wt_in:20,rock_in:'',wetland_pct:5,nddb:'N',coastal:'N'}],
+ ['Outwash terrace parcel',-72.43,41.47,4.0,{sewer:'N',septic_rating:'Somewhat limited',ksat_min:14,ksat_max:141,wt_in:60,rock_in:'',wetland_pct:12,nddb:'Y',coastal:'N'}],
+ ['Shoreline cottage lot',-72.53,41.28,0.35,{sewer:'N',septic_rating:'Very limited',ksat_min:9,ksat_max:120,wt_in:30,rock_in:'',wetland_pct:30,nddb:'N',coastal:'Y'}],
+ ['Ledge ridge tract',-73.25,41.62,3.2,{sewer:'N',septic_rating:'Very limited',ksat_min:2,ksat_max:14,wt_in:'',rock_in:18,wetland_pct:0,nddb:'N',coastal:'N'}],
+ ['Till upland, Town Farm Rd',-72.2,41.83,5.5,{sewer:'N',septic_rating:'Somewhat limited',ksat_min:0.9,ksat_max:9,wt_in:26,rock_in:'',wetland_pct:18,nddb:'N',coastal:'N'}],
+ ['Swamp-edge parcel',-73.05,41.38,1.8,{sewer:'N',septic_rating:'Very limited',ksat_min:1.2,ksat_max:9,wt_in:4,rock_in:'',wetland_pct:78,nddb:'Y',coastal:'N'}],
+ ['Multifamily pad, Old Post Rd',-72.75,41.4,8.0,{sewer:'N',septic_rating:'Not limited',ksat_min:9,ksat_max:42,wt_in:70,rock_in:'',wetland_pct:6,nddb:'N',coastal:'N'}]];
+$('demo').addEventListener('click',()=>{addSites(SAMPLE.map(([n,lon,lat,ac,p])=>{const g=sq(lon,lat,ac);const p2={...p,area_sf:ac*43560};
+ if(hasTurf){const f={type:'Feature',geometry:g};const wet=(p.wetland_pct||0)/100;let u;try{u=turf.area(turf.buffer(f,-10,{units:'feet'}))*M2SF*(1-wet)}catch(e){u=ac*43560*(1-wet)}p2.usable_sf=u}
+ return{name:n,geom:g,props:p2,sample:true}}));if(!S.sel&&S.sites.length)S.sel=ranked()[0].s.id;update(true)});
+
+/* ---------- wiring ---------- */
+$('tSF').addEventListener('click',()=>setType('sf'));$('tMF').addEventListener('click',()=>setType('mf'));
+document.querySelectorAll('aside input:not([type=file])').forEach(i=>i.addEventListener('input',()=>update()));
+$('run').addEventListener('click',runAll);
+$('clickAdd').addEventListener('click',()=>{S.clickMode=!S.clickMode;$('clickAdd').setAttribute('aria-pressed',S.clickMode);$('clickAdd').textContent=S.clickMode?'Click the map to add…':'Add parcel by map click';if(map)map.getContainer().style.cursor=S.clickMode?'crosshair':''});
+setType('sf');probe();
+}
+</script>
+</body>
+</html>
