@@ -3,54 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Wastewater Siting Screen</title>
+<title>Wastewater Feasibility Siting Screen | SECOG</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;800&family=Source+Serif+4:opsz,wght@8..60,600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
-/* VOICE: a site engineer's screening worksheet — plain, exact, defensible.
-   IDEA: a soil-survey sheet crossed with a ranked deep-test log.
-   PICTURE: the parcel map coloured by feasibility, beside the ranked log.
-   COLOUR and TYPE: loam brown ink on paper, water-table blue accent, verdict colours; Public Sans + Source Serif titles.
-   LAYOUT: controls column, map, then the full-width ranked table and the site card. */
-:root{color-scheme:light dark;
---bg:light-dark(#fbfaf7,#16130f);--panel:light-dark(#ffffff,#211c17);--ink:light-dark(#2a211a,#efe8de);--mute:light-dark(#6f6358,#a99c8e);
---line:light-dark(#e4ddd2,#3a3129);--loam:light-dark(#7a4b2a,#d39a6a);--water:light-dark(#1f5fa8,#6fa8e6);
---ok:light-dark(#2f7d4f,#5fbf86);--warn:light-dark(#b7791f,#e0a84a);--bad:light-dark(#b23b3b,#e57373);--sew:light-dark(#1f5fa8,#6fa8e6)}
-:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+:root{color-scheme:light;--navy:#20326e;--blue:#1f73ae;--green:#76b053;--dkgreen:#2a6b2e;
+--bg:#f0f0f0;--panel:#ffffff;--ink:#444;--mute:#666;--line:#dcdfe4;--loam:var(--navy);--water:var(--blue);
+--ok:var(--dkgreen);--warn:#c98a1b;--bad:#b3261e;--sew:var(--blue)}
 *{box-sizing:border-box;min-width:0}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Public Sans",system-ui,sans-serif;overflow-x:clip}
-h1,h2{font-family:"Source Serif 4",Georgia,serif;font-weight:600;line-height:1.08;text-wrap:balance;margin:0}
-h1{font-size:clamp(28px,3.4vw,40px)}h2{font-size:22px;margin-bottom:10px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;overflow-x:clip}
+h1,h2{font-weight:800;line-height:1.15;text-wrap:balance;margin:0;color:var(--navy)}
+h1{font-size:clamp(24px,3vw,30px);text-transform:uppercase}h2{font-size:22px;margin-bottom:10px}
 .band{padding:clamp(18px,3vw,36px) max(4vw,16px)}
 .wrap{max-width:1320px;margin:0 auto}
-header.band{border-bottom:1px solid var(--line);padding-bottom:16px}
+.site{background:#fff;border-bottom:4px solid var(--green);padding:14px 16px}
+.site .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.site a.logo{line-height:0}.site svg{height:34px;width:auto}.site .tag{font-size:13px;color:var(--navy);font-weight:500}
+.intro{padding-bottom:0}
+.crumb{margin:0 0 10px;font-size:14px}.crumb a{color:var(--blue);font-weight:600;text-decoration:none}.crumb a:hover{text-decoration:underline}
+footer.foot{background:var(--navy);color:#fff;font-size:13px;padding:16px;margin-top:24px}footer.foot a{color:#fff}
+@media(max-width:520px){.site .tag{display:none}}
 .lede{color:var(--mute);max-width:72ch;margin:8px 0 0}
-#banner{margin-top:12px;padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-size:14px}
-#banner.off{border-color:var(--warn)}#banner.on{border-color:var(--ok)}
+#banner{margin-top:12px;padding:10px 14px;border-radius:6px;border-left:5px solid var(--line);background:var(--panel);font-size:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+#banner.off{border-left-color:var(--warn)}#banner.on{border-left-color:var(--green)}
 .grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start}
 @media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.card{background:var(--panel);border:0;border-left:5px solid var(--blue);border-radius:6px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .ctl{display:grid;gap:14px}
 fieldset{border:0;padding:0;margin:0;display:grid;gap:8px}
-legend{font-weight:800;font-size:14px;margin-bottom:6px}
+legend{font-weight:800;font-size:14px;margin-bottom:6px;color:var(--navy);text-transform:uppercase;letter-spacing:.02em}
 label{font-size:14px;color:var(--mute);display:grid;gap:4px}
 .row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
 input[type=number],input[type=text],select{font:inherit;font-size:16px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);min-height:44px;width:100%}
-input[type=range]{width:100%;accent-color:var(--loam)}
+input[type=range]{width:100%;accent-color:var(--blue)}
 .wt{display:grid;grid-template-columns:7.5em minmax(0,1fr) 2.2em;align-items:center;gap:8px;font-size:14px}
 .wt output{text-align:right;font-variant-numeric:tabular-nums}
 .seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .seg button{border:0;border-radius:0;background:transparent;color:var(--ink)}
-.seg button[aria-pressed=true]{background:var(--loam);color:var(--bg)}
-button,.btn{font:inherit;font-size:15px;font-weight:600;min-height:44px;padding:8px 14px;border-radius:8px;border:1px solid var(--loam);background:var(--panel);color:var(--loam);cursor:pointer}
-button.pri{background:var(--loam);color:var(--bg)}
+.seg button[aria-pressed=true]{background:var(--navy);color:#fff}
+button,.btn{font:inherit;font-size:15px;font-weight:600;min-height:44px;padding:8px 14px;border-radius:6px;border:1px solid var(--loam);background:var(--panel);color:var(--loam);cursor:pointer}
+button.pri{background:var(--navy);color:#fff}button:hover:not(:disabled){border-color:var(--green)}button.pri:hover:not(:disabled){background:var(--blue)}
 button:disabled{opacity:.5;cursor:default}
 :focus-visible{outline:3px solid var(--water);outline-offset:2px}
 .btns{display:flex;flex-wrap:wrap;gap:8px}
 .flow{font-size:14px;background:var(--bg);border:1px dashed var(--line);border-radius:8px;padding:10px 12px}
 .flow b{font-size:20px;font-variant-numeric:tabular-nums}
 .chk{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink)}
-.chk input{width:20px;height:20px;accent-color:var(--loam)}
+.chk input{width:20px;height:20px;accent-color:var(--blue)}
 #map{height:clamp(360px,52vh,560px);border-radius:10px;border:1px solid var(--line);background:
  repeating-linear-gradient(0deg,transparent 0 39px,var(--line) 39px 40px),repeating-linear-gradient(90deg,transparent 0 39px,var(--line) 39px 40px),var(--panel)}
 .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--mute);margin-top:8px}
@@ -59,11 +59,11 @@ button:disabled{opacity:.5;cursor:default}
 .s-sewer{background:var(--sew)}.s-ok{background:var(--ok)}.s-warn{background:var(--warn)}.s-bad{background:var(--bad)}.s-pend{background:var(--mute)}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
-th{font-size:13px;color:var(--mute);font-weight:600}
+th{font-size:13px;color:var(--navy);font-weight:700}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
-tbody tr{cursor:pointer}tbody tr:hover,tbody tr.sel{background:light-dark(#f3ede4,#2b241d)}
+tbody tr{cursor:pointer}tbody tr:hover{background:#eef4fb}tbody tr.sel{background:#e3eef8;box-shadow:inset 4px 0 0 var(--green)}
 .bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;min-width:44px}
-.bar i{display:block;height:100%;background:var(--loam)}
+.bar i{display:block;height:100%;background:var(--blue)}
 .score{font-weight:800;font-size:16px}
 .empty{color:var(--mute);padding:24px 8px;text-align:center}
 .detail{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;margin-top:12px}
@@ -88,7 +88,7 @@ pre,.scroll{overflow-x:auto}code{overflow-wrap:anywhere;font-size:13px}
 .leaflet-bar{border-radius:6px;border:1px solid var(--line);overflow:hidden}
 .leaflet-bar a{display:block;width:34px;height:34px;line-height:34px;text-align:center;background:var(--panel);color:var(--ink);text-decoration:none;font-size:18px;border-bottom:1px solid var(--line)}
 .leaflet-bar a:last-child{border-bottom:0}
-.leaflet-control-attribution{background:light-dark(rgba(255,255,255,.85),rgba(0,0,0,.6));padding:0 6px;font-size:11px;color:var(--mute)}
+.leaflet-control-attribution{background:rgba(255,255,255,.85);padding:0 6px;font-size:11px;color:var(--mute)}
 .leaflet-control-attribution a{color:var(--water)}
 .leaflet-tooltip{position:absolute;padding:4px 8px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:4px;white-space:nowrap;pointer-events:none;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
 @media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--mute)}.stack td:empty{display:none}.stack td.n{text-align:start}}
@@ -97,12 +97,16 @@ pre,.scroll{overflow-x:auto}code{overflow-wrap:anywhere;font-size:13px}
 <script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
 </head>
 <body>
-<header class="band"><div class="wrap">
-<p style="margin:0 0 8px;font-size:14px"><a href="index.html" style="color:var(--water)">&larr; Connecticut Housing Maps</a></p>
+<header class="site"><div class="wrap">
+  <a class="logo" href="https://secogct.gov" title="Southeastern Connecticut Council of Governments"><svg xmlns="http://www.w3.org/2000/svg" width="171.275" height="36" viewBox="0 0 171.275 36" role="img" aria-label="SECOG"><path d="M18.362,40.907v7.736a.5.5,0,0,1-.5.5H8.546A7.886,7.886,0,0,1,.668,41.265v-.358a.5.5,0,0,1,.5-.5h16.7a.5.5,0,0,1,.5.5" transform="translate(-0.443 -26.77)" fill="#00619f"/><path d="M70.737,48.371v.294a.476.476,0,0,1-.476.477H57.685a.476.476,0,0,1-.476-.477V40.884a.476.476,0,0,1,.476-.476h5.089a7.973,7.973,0,0,1,7.964,7.963" transform="translate(-37.9 -26.77)" fill="#2a6b2e"/><path d="M10,.859V11.311a.859.859,0,0,1-.859.858H.858A.858.858,0,0,1,0,11.311V9.139A9.15,9.15,0,0,1,9.139,0,.86.86,0,0,1,10,.859" transform="translate(0 0)" fill="#07265c"/><path d="M45.441,11.931a.52.52,0,0,1-.433.237H34.329a.562.562,0,0,1-.537-.583v-11A.563.563,0,0,1,34.329,0h6.3a.536.536,0,0,1,.493.352l4.382,11a.623.623,0,0,1-.061.578" transform="translate(-22.387 0)" fill="#6b993c"/><path d="M72.146,2.785V9.553a2.608,2.608,0,0,1-2.592,2.618h-4.3a.518.518,0,0,1-.476-.316L60.373.74a.525.525,0,0,1,.046-.5.506.506,0,0,1,.429-.232H69.4a2.762,2.762,0,0,1,2.744,2.773" transform="translate(-39.968 -0.008)" fill="#00619f"/><path d="M77.693,73.489a9.149,9.149,0,0,1-9.139,9.138.858.858,0,0,1-.857-.858V71.318a.859.859,0,0,1,.857-.859h8.282a.859.859,0,0,1,.858.859Z" transform="translate(-44.848 -46.678)" fill="#6b993c"/><path d="M39.815,82.579h-6.3a.589.589,0,0,1-.541-.384l-4.381-11a.632.632,0,0,1,.541-.885H39.815a.613.613,0,0,1,.588.635v11a.613.613,0,0,1-.588.635" transform="translate(-18.913 -46.579)" fill="#07265c"/><path d="M13.708,82.4a.507.507,0,0,1-.43.232H4.725a2.762,2.762,0,0,1-2.744-2.773V73.092a2.608,2.608,0,0,1,2.591-2.618h4.3a.514.514,0,0,1,.475.316l4.406,11.116a.527.527,0,0,1-.046.5" transform="translate(-1.312 -46.688)" fill="#2a6b2e"/><g fill="#07265c"><path d="M139.349,40.163a15.711,15.711,0,0,1-6.049-1.015,8.233,8.233,0,0,1-3.688-2.829,7.892,7.892,0,0,1-1.385-4.234h5.853a3.709,3.709,0,0,0,1.424,2.342,6.715,6.715,0,0,0,3.844.819,8.016,8.016,0,0,0,4.039-.761,2.409,2.409,0,0,0,1.229-2.166,2.628,2.628,0,0,0-.722-1.912,5.729,5.729,0,0,0-2.2-1.268,28.073,28.073,0,0,0-3.863-1,19.294,19.294,0,0,1-4.761-1.522,7.12,7.12,0,0,1-3.024-2.654,7.985,7.985,0,0,1-1.034-4.254,6.79,6.79,0,0,1,1.268-4.117,8.291,8.291,0,0,1,3.59-2.712,14.1,14.1,0,0,1,5.483-.975,14.275,14.275,0,0,1,5.639.956,7.508,7.508,0,0,1,3.356,2.673A8.418,8.418,0,0,1,149.69,19.6h-5.815a3.3,3.3,0,0,0-1.288-2.088,5.83,5.83,0,0,0-3.239-.683,6.143,6.143,0,0,0-3.4.742,2.294,2.294,0,0,0-1.093,1.99,2.637,2.637,0,0,0,1.5,2.38,16.282,16.282,0,0,0,4.741,1.483,26.831,26.831,0,0,1,3.961,1.054,9.837,9.837,0,0,1,2.946,1.619,6.485,6.485,0,0,1,1.834,2.4,8.331,8.331,0,0,1,.624,3.4,7.445,7.445,0,0,1-1.307,4.371,8.3,8.3,0,0,1-3.785,2.888,15.934,15.934,0,0,1-6.029,1.015" transform="translate(-84.949 -7.89)"/><path d="M206.849,40.614V13.3h19.043v4.839H212.7v6.088h12.019v4.683H212.7v6.868h13.19v4.839Z" transform="translate(-137.035 -8.81)"/><path d="M284.931,40.163a13.746,13.746,0,0,1-6.342-1.424,10,10,0,0,1-4.37-4.488,17.513,17.513,0,0,1-1.581-8.019v-.78a17.915,17.915,0,0,1,.937-6.146,10.964,10.964,0,0,1,2.634-4.195,10.675,10.675,0,0,1,3.922-2.42,14.406,14.406,0,0,1,4.8-.78,15.876,15.876,0,0,1,4.312.566,11.2,11.2,0,0,1,3.571,1.7A8.483,8.483,0,0,1,295.33,17.1a10.283,10.283,0,0,1,1.112,4.215h-6.088a5.267,5.267,0,0,0-1.873-3.4,5.717,5.717,0,0,0-3.551-1.093,6.051,6.051,0,0,0-3.044.8A5.743,5.743,0,0,0,279.6,20.3a12.358,12.358,0,0,0-.878,5.151v.78a14.549,14.549,0,0,0,.546,4.312,7.693,7.693,0,0,0,1.444,2.771,5.31,5.31,0,0,0,1.99,1.483,5.8,5.8,0,0,0,2.225.449,5.7,5.7,0,0,0,3.668-1.151,4.967,4.967,0,0,0,1.756-3.337h6.088a11.315,11.315,0,0,1-1.132,4.351,8.225,8.225,0,0,1-2.458,2.927,10.1,10.1,0,0,1-3.551,1.619,18,18,0,0,1-4.371.507" transform="translate(-180.62 -7.89)"/><path d="M363.328,40.163a15.1,15.1,0,0,1-4.878-.78,11.511,11.511,0,0,1-4.117-2.439,11.253,11.253,0,0,1-2.849-4.312,17.634,17.634,0,0,1-1.034-6.4v-.78a16.371,16.371,0,0,1,1.034-6.146,11.207,11.207,0,0,1,2.849-4.195,11.676,11.676,0,0,1,4.117-2.42,15.637,15.637,0,0,1,9.756,0,11.682,11.682,0,0,1,4.117,2.42,11.216,11.216,0,0,1,2.849,4.195,16.385,16.385,0,0,1,1.034,6.146v.78a17.65,17.65,0,0,1-1.034,6.4,11.261,11.261,0,0,1-2.849,4.312,11.517,11.517,0,0,1-4.117,2.439,15.1,15.1,0,0,1-4.878.78m0-4.917a6.866,6.866,0,0,0,3.337-.839,6.066,6.066,0,0,0,2.5-2.81,12.463,12.463,0,0,0,.956-5.366v-.78a11.394,11.394,0,0,0-.956-5.093,6,6,0,0,0-2.5-2.712,7.163,7.163,0,0,0-6.654,0,5.966,5.966,0,0,0-2.517,2.712,11.39,11.39,0,0,0-.956,5.093v.78a12.459,12.459,0,0,0,.956,5.366,6.027,6.027,0,0,0,2.517,2.81,6.9,6.9,0,0,0,3.317.839" transform="translate(-232.169 -7.89)"/><path d="M447.3,40.163a14.41,14.41,0,0,1-6.5-1.424,10.323,10.323,0,0,1-4.527-4.488,16.808,16.808,0,0,1-1.659-8.019v-.78a17,17,0,0,1,.995-6.127,10.917,10.917,0,0,1,6.751-6.634,14.332,14.332,0,0,1,4.741-.78,15.189,15.189,0,0,1,4.273.566,10.6,10.6,0,0,1,3.414,1.678,9.184,9.184,0,0,1,2.459,2.81,12,12,0,0,1,1.366,3.961h-6.088a6.493,6.493,0,0,0-1.4-2.517,4.614,4.614,0,0,0-1.893-1.21,6.946,6.946,0,0,0-2.127-.331,6.4,6.4,0,0,0-3.18.819,5.742,5.742,0,0,0-2.342,2.693,12.133,12.133,0,0,0-.878,5.073v.78a14.181,14.181,0,0,0,.546,4.254,7.191,7.191,0,0,0,1.5,2.751,5.853,5.853,0,0,0,2.127,1.5,6.457,6.457,0,0,0,2.42.468,7.658,7.658,0,0,0,3.044-.585,5.166,5.166,0,0,0,2.244-1.854,6.533,6.533,0,0,0,1.034-3.259h-5.542V25.451h11.122v1.561a18.376,18.376,0,0,1-.839,5.873,10.653,10.653,0,0,1-2.42,4.1,9.783,9.783,0,0,1-3.766,2.4,14.434,14.434,0,0,1-4.878.78" transform="translate(-287.931 -7.89)"/></g></svg></a>
+  <span class="tag">Southeastern Connecticut Council of Governments</span>
+</div></header>
+<section class="band intro"><div class="wrap">
+<p class="crumb"><a href="index.html">&larr; Connecticut Housing Maps</a></p>
 <h1>Wastewater feasibility siting screen</h1>
 <p class="lede">Ranks Connecticut parcels for sewer access or septic suitability from public GIS data: SSURGO soils, water table and bedrock, wetland soils and NDDB areas, DPH/DEEP offsets, and the Coastal Boundary. It's a desktop screen to use before deep tests and percolation tests, and it doesn't replace them.</p>
 <div id="banner">Checking whether live GIS lookups are reachable…</div>
-</div></header>
+</div></section>
 
 <main class="band"><div class="wrap grid">
 <aside class="card ctl" aria-label="Project inputs">
@@ -150,7 +154,6 @@ pre,.scroll{overflow-x:auto}code{overflow-wrap:anywhere;font-size:13px}
   <span><i class="dot s-sewer"></i>Sewer available</span><span><i class="dot s-ok"></i>Septic feasible</span>
   <span><i class="dot s-warn"></i>Septic constrained</span><span><i class="dot s-bad"></i>Not feasible</span><span><i class="dot s-pend"></i>Not yet screened</span>
  </div>
- <p class="note">The basemap and live lookups load only when this page runs from your own computer or web server. In the hosted view, parcels draw on a plain grid.</p>
 </section>
 </div></main>
 
@@ -193,6 +196,8 @@ wetland_pct (0–100), nddb (Y/N), coastal (Y/N), area_sf, usable_sf</code></pre
  </details>
 </div></section>
 
+<footer class="foot"><div class="wrap">&copy; Southeastern Connecticut Council of Governments &middot; <a href="https://secogct.gov">secogct.gov</a></div></footer>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
 <script>
@@ -230,7 +235,7 @@ $('weights').innerHTML=Object.keys(W_DEF).map(k=>`<div class="wt"><span>${W_LBL[
 /* ---------- map ---------- */
 let map=null,layer=null;
 if(hasL){map=L.map('map',{zoomControl:true,attributionControl:true}).setView([41.6,-72.7],9);
- L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,attribution:'Basemap © Esri'}).addTo(map);
  layer=L.featureGroup().addTo(map);
  map.on('click',async e=>{if(!S.clickMode||!hasTurf)return;const ll=[e.latlng.lng,e.latlng.lat];
   if(S.live){try{const body=new URLSearchParams({f:'geojson',geometry:ll.join(','),geometryType:'esriGeometryPoint',inSR:'4326',spatialRel:'esriSpatialRelIntersects',
@@ -282,7 +287,7 @@ async function probe(){if(location.protocol==='blob:'||!window.fetch){S.live=fal
   const r=await fetch(L_COAST+'?f=json',{signal:ctl.signal});clearTimeout(t);S.live=r.ok}catch(e){S.live=false}banner()}
 function banner(){const b=$('banner');b.className=S.live?'on':'off';
  b.innerHTML=S.live?'Live lookups are available: NRCS Soil Data Access and CT DEEP layers will be queried for each parcel.'
- :'Live lookups are blocked in this hosted view. Open the downloaded HTML file in your browser to query SSURGO and CT DEEP layers. Here you can still load parcels that already carry attributes, or try the sample sites.';update()}
+ :'Live GIS lookups aren\'t reachable right now. You can still load parcels that already carry attributes, or try the sample sites.';update()}
 function ringsWKT(g){const ring=r=>'('+r.map(p=>(+p[0]).toFixed(7)+' '+(+p[1]).toFixed(7)).join(',')+')';
  const poly=p=>'('+p.map(ring).join(',')+')';
  return g.type==='Polygon'?'POLYGON'+poly(g.coordinates):'MULTIPOLYGON('+g.coordinates.map(poly).join(',')+')'}
